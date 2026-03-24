@@ -1,0 +1,78 @@
+{% extends "lc_ms/base_lcms.html" %}
+{% block content %}
+<div class="section-header">
+  <h1>Purification File Generator</h1>
+</div>
+
+<div class="card">
+  <form action="{{ url_for('lc_ms_api.generate_purif') }}" method="post" class="form">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <label>
+        <span>ELN ID *</span>
+        <input name="eln_id" placeholder="e.g. ELN040616-358" required>
+      </label>
+      <label>
+        <span>Purification no. *</span>
+        <input name="purif_no" placeholder="1" value="1" required>
+      </label>
+      <label style="grid-column: span 2;">
+        <span>Fractions * (comma/space separated, e.g. 1, 2, 3-5, F6)</span>
+        <textarea name="fractions" rows="3" placeholder="e.g. 1, 2, 3-5, F6" required></textarea>
+      </label>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <button type="submit" class="btn">Generate Purification File</button>
+    </div>
+  </form>
+  <div style="margin-top: 10px; font-size: 12px; color: var(--muted);">Output filename:
+    <code>{USER_ID}_Purification.txt</code>
+  </div>
+</div>
+
+<div class="section-header" style="margin-top: 30px;">
+  <h2>Purification Methods</h2>
+</div>
+<div class="table-wrap">
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>Method Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in purif_methods %}
+      <tr>
+        <td>{{ m.name }}</td>
+        <td>{{ m.description }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script src="{{ url_for('lc_ms.static', filename='script.js') }}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('form.form');
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+        try {
+          const r = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok || data.error) alert(data.error || 'Server error');
+          else alert(data.message || 'Saved successfully');
+        } catch (err) {
+          alert('Network error');
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Generate Purification File'; }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

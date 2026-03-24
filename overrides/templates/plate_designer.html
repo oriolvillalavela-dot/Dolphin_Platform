@@ -1,0 +1,49 @@
+
+{% extends "base.html" %}
+{% block content %}
+<div class="designer">
+  <div class="designer-left">
+    <h1>Plate Designer</h1>
+    <div class="form">
+      <label>
+        <span>Plate type</span>
+        <select id="plateType" class="themed-select">
+          <option value="24" {% if plate_type=='24' %}selected{% endif %}>24-well (4×6)</option>
+          <option value="96" {% if plate_type=='96' %}selected{% endif %}>96-well (8×12)</option>
+        </select>
+      </label>
+    </div>
+    <div id="plateHost"></div>
+  </div>
+
+  <div class="designer-right">
+    <h2>Experiment metadata</h2>
+    <div class="form slim">
+      <label><span>ELN (ELNXXXXXX-XXX)</span><input id="eln" placeholder="ELN123456-001" /></label>
+      <label><span>Atmosphere</span><input id="atmosphere" placeholder="N2" /></label>
+      <label><span>Mixing</span>
+        <div class="row-inline">
+          <select id="mix_mode" class="themed-select">
+            <option value="">—</option>
+            <option value="st">stirring</option>
+            <option value="sh">shaking</option>
+          </select>
+          <input id="mix_rpm" type="number" placeholder="rpm" />
+        </div>
+      </label>
+      <label><span>Wavelength (nm)</span><input id="wavelength_nm" type="number" step="1" /></label>
+      <label><span>Scale (mol)</span><input id="scale_mol" type="number" step="0.000001" /></label>
+      <label><span>Concentration (mol/L)</span><input id="concentration_mol_l" type="number" step="0.001" /></label>
+      <div class="actions">
+        <button class="btn" data-action="save-plate">Save plate → SURF</button>
+      </div>
+    </div>
+    <div class="muted">Tip: assign at the plate/row/column level, then refine specific wells. The well popup accepts Chem_ID, name, CAS, or SMILES.</div>
+  </div>
+</div>
+
+<script>
+  window.addEventListener('load', () => PlateUI.init("{{ plate_type }}", {{ prefill_json|tojson|safe if prefill_json else 'null' }}));
+  document.addEventListener('change', (e)=>{ if(e.target && e.target.id==='plateType'){ PlateUI.reloadWithType(); } });
+</script>
+{% endblock %}

@@ -1,0 +1,34 @@
+
+{% extends "base.html" %}
+{% block content %}
+<div class="section-header">
+  <h1>Bottles DB</h1>
+  <div class="actions">
+    <input id="botSearch" class="search" placeholder="Search (bottle_id, chem_id, supplier, lot…)" value="{{ search or '' }}"
+           onkeydown="if(event.key==='Enter'){ window.location='?q='+encodeURIComponent(this.value)}">
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>bottle_id</th><th>chem_id</th><th>supplier_id</th><th>Lot_no</th><th>purity</th><th>size/amount</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in bottles %}
+      <tr>
+        <td>{{ b.bottle_id }}</td>
+        <td>{{ b.chem_id }}</td>
+        <td>{{ b.supplier_id }}</td>
+        <td>{{ b.lot_no }}</td>
+        <td>{{ b.purity }}</td>
+        <td>{{ b.size_amount }}</td>
+        <td><button class="btn small" data-action="open-generate-batch" data-chem-id="{{ b.chem_id }}" data-bottle-id="{{ b.bottle_id }}">Generate batch</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

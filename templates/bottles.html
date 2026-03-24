@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="section-header">
+  <h1>Bottles DB</h1>
+  <div class="actions">
+    <button class="btn secondary" onclick="BottleImport.open()">Multi-Entry</button>
+    <input id="botSearch" class="search" placeholder="Search (bottle_id, chem_id, supplier, lot, barcode…)"
+      value="{{ search or '' }}"
+      onkeydown="if(event.key==='Enter'){ window.location='?q='+encodeURIComponent(this.value)}">
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>bottle_id</th>
+        <th>chem_id</th>
+        <th>supplier_id</th>
+        <th>Lot_no</th>
+        <th>purity</th>
+        <th>size/amount</th>
+        <th>Barcode</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in bottles %}
+      <tr>
+        <td>{{ b.bottle_id }}</td>
+        <td>{{ b.chem_id }}</td>
+        <td>{{ b.supplier_id }}</td>
+        <td>{{ b.lot_no }}</td>
+        <td>{{ b.purity }}</td>
+        <td>{{ b.size_amount }}</td>
+        <td>{{ b.barcode or '' }}</td>
+        <td class="sticky-right">
+          <button type="button" class="btn small" data-action="open-generate-batch" data-chem-id="{{ b.chem_id }}"
+            data-bottle-id="{{ b.bottle_id }}">
+            Generate batch
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Bulk Import Modal -->
+<div id="bottleImportModal" class="modal hidden" style="z-index: 100;">
+  <div class="modal-card"
+    style="background-color: #1a2634; border: 1px solid #2f455c; max-width: 900px; width: 95%; height: 85vh; display: flex; flex-direction: column;">
+    <div class="modal-header" style="border-bottom: 1px solid #2f455c; padding: 16px 24px;">
+      <h3 id="importModalTitle">Bottle Bulk Import</h3>
+      <button class="icon-btn" onclick="BottleImport.close()">✕</button>
+    </div>
+
+    <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 0; display: flex; flex-direction: column;">
+
+      <!-- PHASE 1: Upload -->
+      <div id="importPhase1" style="padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+        <!-- Step 1 -->
+        <div style="background-color: #243040; padding: 16px; border-radius: 8px; border: 1px solid #2f455c;">
+          <h4 style="margin: 0 0 8px; color: #e7f1ff;">Step 1: Download Template</h4>
+          <p style="margin: 0 0 16px; color: #9fb7d1; font-size: 14px;">
+            Download the Excel template (.xlsx) and fill in your bottle data.
+          </p>
+          <button class="btn small" style="background-color: #3aa6ff; color: #0b1f33; font-weight: 600;"
+            onclick="BottleImport.downloadTemplate()">
+            Download Template (.xlsx)
+          </button>
+        </div>
+
+        <!-- Step 2 -->
+        <div>
+          <h4 style="margin: 0 0 8px; color: #e7f1ff;">Step 2: Upload & Preview</h4>
+          <div id="dropzone"
+            style="border: 2px dashed #3aa6ff; border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s;"
+            onclick="document.getElementById('fileInput').click()"
+            ondragover="event.preventDefault(); this.style.backgroundColor = 'rgba(58, 166, 255, 0.1)';"
+            ondragleave="event.preventDefault(); this.style.backgroundColor = 'transparent';"
+            ondrop="BottleImport.handleDrop(event)">
+
+            <img src="{{ url_for('static', filename='icons/cloud-upload.png') }}"
+              style="width: 48px; opacity: 0.8; margin-bottom: 12px;" onerror="this.style.display='none'">
+            <div style="color: #3aa6ff; font-weight: 600; margin-bottom: 4px;">Click or Drag Excel file here</div>
+            <div style="color: #9fb7d1; font-size: 13px;">Accepts .xlsx files</div>
+            <input type="file" id="fileInput" accept=".xlsx" style="display: none;"
+              onchange="BottleImport.handleFile(this.files[0])">
+          </div>
+        </div>
+
+        <!-- Spinner -->
+        <div id="importSpinner" style="display: none; text-align: center; padding: 20px;">
+          <div class="spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto;"></div>
+          <div style="margin-top: 10px; color: #e7f1ff;">Processing...</div>
+        </div>
+
+        <div id="uploadError" style="color: #ff6b6b; white-space: pre-wrap; font-size: 13px; text-align: center;"></div>
+      </div>
+
+      <!-- PHASE 2: Preview -->
+      <div id="importPhase2" style="display: none; flex-direction: column; flex: 1;">
+        <div style="display: flex; background: #0f1a26; border-bottom: 1px solid #2f455c;">
+          <button class="tab-btn active" onclick="BottleImport.switchTab('bottles')" id="tabBtnBottles"
+            style="flex:1; padding: 12px; background: transparent; color: white; border: none; border-bottom: 2px solid #3aa6ff; cursor: pointer;">Preview:
+            Bottles to Create</button>
+          <button class="tab-btn" onclick="BottleImport.switchTab('batches')" id="tabBtnBatches"
+            style="flex:1; padding: 12px; background: transparent; color: #9fb7d1; border: none; border-bottom: 2px solid transparent; cursor: pointer;">Preview:
+            Batches (Auto-Generated)</button>
+        </div>
+
+        <div style="flex: 1; overflow: auto; position: relative;">
+          <!-- Bottles Table -->
+          <div id="previewBottlesWrap" style="display: block;">
+            <table class="grid" style="margin: 0; width: 100%;">
+              <thead style="position: sticky; top: 0; z-index: 10;">
+                <tr>
+                  <th>New Bottle ID</th>
+                  <th>Chem ID</th>
+                  <th>Supplier <span style="color:#3aa6ff">*</span></th>
+                  <th>Lot No <span style="color:#3aa6ff">*</span></th>
+                  <th>Purity <span style="color:#3aa6ff">*</span></th>
+                  <th>Amount <span style="color:#3aa6ff">*</span></th>
+                  <th>Barcode</th>
+                </tr>
+              </thead>
+              <tbody id="previewBottlesBody"></tbody>
+            </table>
+          </div>
+
+          <!-- Batches Table -->
+          <div id="previewBatchesWrap" style="display: none;">
+            <table class="grid" style="margin: 0; width: 100%;">
+              <thead style="position: sticky; top: 0; z-index: 10;">
+                <tr>
+                  <th>New Batch ID</th>
+                  <th>Linked Bottle</th>
+                  <th>Location</th>
+                  <th>Sublocation</th>
+                  <th>Status</th>
+                  <th>Barcode</th>
+                </tr>
+              </thead>
+              <tbody id="previewBatchesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHASE 3: Results -->
+      <div id="importPhase3"
+        style="display: none; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 40px; text-align: center;">
+        <div style="font-size: 64px; margin-bottom: 20px;">✅</div>
+        <h2 style="color: white; margin-bottom: 10px;">Import Complete</h2>
+        <p id="resultSummary" style="color: #9fb7d1; font-size: 16px; margin-bottom: 20px;"></p>
+        <div id="resultErrors"
+          style="width: 100%; max-width: 600px; max-height: 150px; overflow-y: auto; background: #243040; padding: 10px; border-radius: 6px; text-align: left; font-family: monospace; font-size: 12px; color: #ff6b6b; display: none;">
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Actions Footer -->
+    <div class="modal-actions"
+      style="border-top: 1px solid #2f455c; padding: 16px 24px; background: #1a2634; display: flex; justify-content: flex-end; gap: 12px;">
+
+      <!-- Phase 1 Actions -->
+      <div id="actionsPhase1">
+        <button class="btn ghost" onclick="BottleImport.close()">Cancel</button>
+      </div>
+
+      <!-- Phase 2 Actions -->
+      <div id="actionsPhase2" style="display: none;">
+        <button class="btn ghost" onclick="BottleImport.reset()">Cancel Import</button>
+        <button class="btn primary" onclick="BottleImport.confirmImport()">Confirm & Create Entries</button>
+      </div>
+
+      <!-- Phase 3 Actions -->
+      <div id="actionsPhase3" style="display: none;">
+        <button class="btn primary" onclick="location.reload()">Close & Reload</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const BottleImport = {
+    modal: document.getElementById('bottleImportModal'),
+    stagedData: null, // { bottles: [], batches: [] }
+
+    open() {
+      this.modal.classList.remove('hidden');
+      this.reset();
+    },
+
+    close() {
+      this.modal.classList.add('hidden');
+    },
+
+    reset() {
+      // Reset to Phase 1
+      document.getElementById('importPhase1').style.display = 'flex';
+      document.getElementById('importPhase2').style.display = 'none';
+      document.getElementById('importPhase3').style.display = 'none';
+
+      document.getElementById('actionsPhase1').style.display = 'block';
+      document.getElementById('actionsPhase2').style.display = 'none';
+      document.getElementById('actionsPhase3').style.display = 'none';
+
+      document.getElementById('importSpinner').style.display = 'none';
+      document.getElementById('uploadError').innerText = '';
+      document.getElementById('fileInput').value = '';
+
+      this.stagedData = null;
+    },
+
+    downloadTemplate() {
+      window.location.href = '/bottles/bulk_template';
+    },
+
+    handleDrop(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.target.style.backgroundColor = 'transparent';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        this.handleFile(e.dataTransfer.files[0]);
+      }
+    },
+
+    handleFile(file) {
+      if (!file) return;
+
+      document.getElementById('importSpinner').style.display = 'block';
+      document.getElementById('uploadError').innerText = "";
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      fetch('/bottles/bulk_import', {
+        method: 'POST',
+        body: formData
+      })
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById('importSpinner').style.display = 'none';
+          if (data.ok) {
+            this.stagedData = data.preview; // { bottles: [], batches: [] }
+            this.renderPreview();
+            this.goToPhase2();
+            if (data.errors && data.errors.length > 0) {
+              alert("Some rows had errors and were skipped:\n" + data.errors.join("\n"));
+            }
+          } else {
+            document.getElementById('uploadError').innerText = data.error || "Upload failed";
+          }
+        })
+        .catch(err => {
+          document.getElementById('importSpinner').style.display = 'none';
+          document.getElementById('uploadError').innerText = "Network Error: " + err.message;
+        });
+    },
+
+    goToPhase2() {
+      document.getElementById('importPhase1').style.display = 'none';
+      document.getElementById('actionsPhase1').style.display = 'none';
+
+      document.getElementById('importPhase2').style.display = 'flex';
+      document.getElementById('actionsPhase2').style.display = 'flex';
+
+      this.switchTab('bottles'); // Default tab
+    },
+
+    renderPreview() {
+      const bTbody = document.getElementById('previewBottlesBody');
+      const btTbody = document.getElementById('previewBatchesBody');
+
+      // 1. Bottles Table (Editable)
+      bTbody.innerHTML = this.stagedData.bottles.map((b, idx) => `
+        <tr>
+            <td style="color: #4ade80; font-family: monospace;">${b.bottle_id}</td>
+            <td style="font-family: monospace;">${b.chem_id}</td>
+            <td class="p-0"><input class="w-full h-full bg-transparent border-none text-white px-2 focus:bg-[#243040] focus:outline-none" 
+                value="${b.supplier_id}" onchange="BottleImport.updateBottle(${idx}, 'supplier_id', this.value)"></td>
+            <td class="p-0"><input class="w-full h-full bg-transparent border-none text-white px-2 focus:bg-[#243040] focus:outline-none" 
+                value="${b.lot_no}" onchange="BottleImport.updateBottle(${idx}, 'lot_no', this.value)"></td>
+            <td class="p-0"><input type="number" step="0.01" class="w-full h-full bg-transparent border-none text-white px-2 focus:bg-[#243040] focus:outline-none" 
+                value="${b.purity}" onchange="BottleImport.updateBottle(${idx}, 'purity', this.value)"></td>
+            <td class="p-0"><input class="w-full h-full bg-transparent border-none text-white px-2 focus:bg-[#243040] focus:outline-none" 
+                value="${b.amount}" onchange="BottleImport.updateBottle(${idx}, 'amount', this.value)"></td>
+            <td class="p-0"><input class="w-full h-full bg-transparent border-none text-white px-2 focus:bg-[#243040] focus:outline-none" 
+                value="${b.barcode || ''}" onchange="BottleImport.updateBottle(${idx}, 'barcode', this.value)"></td>
+        </tr>
+     `).join('');
+
+      // 2. Batches Table (Read-Only)
+      btTbody.innerHTML = this.stagedData.batches.map(bt => `
+        <tr>
+            <td style="color: #4ade80; font-family: monospace;">${bt.batch_id}</td>
+            <td style="font-family: monospace;">${bt.linked_bottle_id}</td>
+            <td>${bt.location}</td>
+            <td>${bt.sublocation || ''}</td>
+            <td>${bt.status}</td>
+            <td>${bt.barcode || ''}</td>
+        </tr>
+     `).join('');
+    },
+
+    updateBottle(idx, field, value) {
+      if (this.stagedData.bottles[idx]) {
+        this.stagedData.bottles[idx][field] = value;
+        // Note: If you edit 'amount' in bottle, you might want to auto-update 'amount' in linked batch.
+        // For simplicity, we'll leave them somewhat decoupled in UI, or simple auto-sync:
+        if (field === 'amount' || field === 'barcode') {
+          const bottleId = this.stagedData.bottles[idx].bottle_id;
+          const linkedBatch = this.stagedData.batches.find(bt => bt.linked_bottle_id === bottleId);
+          if (linkedBatch) linkedBatch[field] = value;
+          // Re-render batches to show update? Only if visible? Let's lazy update.
+          // Just updating underlying data is enough for commit.
+        }
+      }
+    },
+
+    switchTab(tab) {
+      const bWrap = document.getElementById('previewBottlesWrap');
+      const btWrap = document.getElementById('previewBatchesWrap');
+      const bBtn = document.getElementById('tabBtnBottles');
+      const btBtn = document.getElementById('tabBtnBatches');
+
+      if (tab === 'bottles') {
+        bWrap.style.display = 'block';
+        btWrap.style.display = 'none';
+        bBtn.classList.add('active'); bBtn.style.color = 'white'; bBtn.style.borderBottomColor = '#3aa6ff';
+        btBtn.classList.remove('active'); btBtn.style.color = '#9fb7d1'; btBtn.style.borderBottomColor = 'transparent';
+      } else {
+        bWrap.style.display = 'none';
+        btWrap.style.display = 'block';
+        bBtn.classList.remove('active'); bBtn.style.color = '#9fb7d1'; bBtn.style.borderBottomColor = 'transparent';
+        btBtn.classList.add('active'); btBtn.style.color = 'white'; btBtn.style.borderBottomColor = '#3aa6ff';
+      }
+    },
+
+    confirmImport() {
+      // Send stagedData (with edits) to commit
+      if (!this.stagedData) return;
+
+      const btn = document.querySelector('#actionsPhase2 .btn.primary');
+      const originalText = btn.innerText;
+      btn.innerText = "Saving...";
+      btn.disabled = true;
+
+      fetch('/bottles/bulk_commit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.stagedData)
+      })
+        .then(r => r.json())
+        .then(data => {
+          btn.innerText = originalText;
+          btn.disabled = false;
+
+          if (data.ok) {
+            this.showResults(data);
+          } else {
+            alert("Commit Failed: " + data.error);
+          }
+        })
+        .catch(err => {
+          btn.innerText = originalText;
+          btn.disabled = false;
+          alert("Network Error: " + err.message);
+        });
+    },
+
+    showResults(data) {
+      document.getElementById('importPhase2').style.display = 'none';
+      document.getElementById('actionsPhase2').style.display = 'none';
+
+      document.getElementById('importPhase3').style.display = 'flex';
+      document.getElementById('actionsPhase3').style.display = 'flex';
+
+      document.getElementById('resultSummary').innerHTML = `Successfully created <strong style="color: #4ade80">${data.created}</strong> bottles & batches.`;
+
+      const errDiv = document.getElementById('resultErrors');
+      if (data.errors && data.errors.length > 0) {
+        errDiv.style.display = 'block';
+        errDiv.innerText = "Errors:\n" + data.errors.join("\n");
+      } else {
+        errDiv.style.display = 'none';
+      }
+    }
+
+  };
+</script>
+{% endblock %}

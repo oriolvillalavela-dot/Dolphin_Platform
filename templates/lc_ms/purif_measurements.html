@@ -1,0 +1,118 @@
+{% extends "lc_ms/base_lcms.html" %}
+{% block content %}
+<div class="section-header">
+  <h1>Purification Measurements</h1>
+</div>
+<p style="color:var(--muted); margin-bottom: 20px;">Showing the most recently measured entries. Use <b>Expand</b> to
+  view the full database.</p>
+
+<div class="section-header">
+  <h2>Recently Added</h2>
+  <div class="actions">
+    <button class="btn ghost" onclick="openPurifExpand()">Expand</button>
+  </div>
+</div>
+
+<div class="table-wrap" style="max-height: 420px;">
+  <table class="grid" id="purifTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>User</th>
+        <th>ELN ID</th>
+        <th>Purif no.</th>
+        <th>Fraction no.</th>
+        <th>Purif method</th>
+        <th>Analysis instrument</th>
+        <th>Analysis file name</th>
+        <th>Result</th>
+        <th class="sticky-right"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in recent %}
+      <tr data-id="{{ r.id }}">
+        <td class="noedit">{{ r.id or "" }}</td>
+        <td class="noedit">{{ r.chemist_username or "" }}</td>
+        <td class="noedit">{{ r.eln_id or "" }}</td>
+        <td class="noedit">{{ r.purif_no or "" }}</td>
+        <td class="noedit">{% if r.fraction_label %}{% if r.fraction_label[:1]|lower == "f" %}{{ r.fraction_label }}{%
+          else %}F{{ r.fraction_label }}{% endif %}{% else %}F{% if r.fraction_label %}{% if r.fraction_label[:1]|lower
+          == "f" %}{{ r.fraction_label }}{% else %}F{{ r.fraction_label }}{% endif %}{% else %}F{{ r.fraction_no or ""
+          }}{% endif %}{% endif %}</td>
+        <td class="noedit">{{ r.purif_method or "" }}</td>
+        <td data-field="analysis_instrument">{{ r.analysis_instrument or "" }}</td>
+        <td data-field="analysis_file_name">{{ r.analysis_file_name or "" }}</td>
+        <td data-field="purif_result">{{ r.purif_result or "" }}</td>
+        <td class="sticky-right">
+          <div class="actions">
+            <button class="btn small ghost" onclick="rowEdit(this)">Edit</button>
+            <button class="btn small hidden" onclick="rowSave(this, 'purif')">Save</button>
+            <button class="btn small ghost hidden" onclick="rowCancel(this)">Cancel</button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Expand modal (full database) -->
+<div id="purifExpandModal" class="modal hidden">
+  <div class="modal-card" style="width: 95vw; height: 90vh; display: flex; flex-direction: column;">
+    <div class="modal-header">
+      <h3>Purification Measurements · Full Database</h3>
+      <button class="icon-btn" onclick="closePurifExpand()">✕</button>
+    </div>
+    <div class="modal-actions">
+      <input id="purifSearch" class="search" placeholder="Search by ELN ID…" style="width: 100%;">
+    </div>
+    <div class="modal-body" style="flex: 1; overflow: auto;">
+      <div class="table-wrap">
+        <table class="grid" id="purifModalTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>User</th>
+              <th>ELN ID</th>
+              <th>Purif no.</th>
+              <th>Fraction no.</th>
+              <th>Purif method</th>
+              <th>Analysis instrument</th>
+              <th>Analysis file name</th>
+              <th>Result</th>
+              <th class="sticky-right"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in all_purif %}
+            <tr data-id="{{ r.id }}">
+              <td class="noedit">{{ r.id or "" }}</td>
+              <td class="noedit">{{ r.chemist_username or "" }}</td>
+              <td class="noedit">{{ r.eln_id or "" }}</td>
+              <td class="noedit">{{ r.purif_no or "" }}</td>
+              <td class="noedit">{% if r.fraction_label %}{% if r.fraction_label[:1]|lower == "f" %}{{ r.fraction_label
+                }}{% else %}F{{ r.fraction_label }}{% endif %}{% else %}F{% if r.fraction_label %}{% if
+                r.fraction_label[:1]|lower == "f" %}{{ r.fraction_label }}{% else %}F{{ r.fraction_label }}{% endif %}{%
+                else %}F{{ r.fraction_no or "" }}{% endif %}{% endif %}</td>
+              <td class="noedit">{{ r.purif_method or "" }}</td>
+              <td data-field="analysis_instrument">{{ r.analysis_instrument or "" }}</td>
+              <td data-field="analysis_file_name">{{ r.analysis_file_name or "" }}</td>
+              <td data-field="purif_result">{{ r.purif_result or "" }}</td>
+              <td class="sticky-right">
+                <div class="actions">
+                  <button class="btn small ghost" onclick="rowEdit(this)">Edit</button>
+                  <button class="btn small hidden" onclick="rowSave(this, 'purif')">Save</button>
+                  <button class="btn small ghost hidden" onclick="rowCancel(this)">Cancel</button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('lc_ms.static', filename='script.js') }}"></script>
+{% endblock %}

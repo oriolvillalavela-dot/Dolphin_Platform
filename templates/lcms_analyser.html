@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="section-header">
+    <h1>LC-MS Analyser</h1>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h3>Analysis Parameters</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data" class="form">
+                <div class="grid2">
+                    <label><span>RPT File (Required)</span><input type="file" name="rpt_file" accept=".rpt"
+                            required></label>
+                    <label><span>Mapping File (Optional)</span><input type="file" name="mapping_file"
+                            accept=".tsv,.csv,.txt"></label>
+
+                    <label><span>Scope</span>
+                        <select name="scope">
+                            <option value="Single reaction">Single reaction</option>
+                            <option value="Plate">Plate</option>
+                        </select>
+                    </label>
+
+                    <label><span>Plate Size (if Plate)</span>
+                        <select name="plate_size">
+                            <option value="96">96</option>
+                            <option value="48">48</option>
+                            <option value="24">24</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="section-header" style="margin-top:20px">
+                    <h4>Yield Parameters</h4>
+                </div>
+                <div class="grid4">
+                    <label><span>RF</span><input type="number" step="0.1" name="rf" value="1.0"></label>
+                    <label><span>Conc IS (mM)</span><input type="number" step="0.1" name="conc_is" value="10.0"></label>
+                    <label><span>Volume (mL)</span><input type="number" step="0.1" name="volume" value="1.0"></label>
+                    <label><span>Scale (mmol)</span><input type="number" step="0.000001" name="scale"
+                            value="0.1"></label>
+                </div>
+
+                <div class="actions" style="margin-top:20px">
+                    <button type="submit" class="btn primary">Run Analysis</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="card error" style="margin-top:20px; border-color: var(--danger);">
+        <div class="card-body" style="color: var(--danger);">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if results %}
+    <div class="card" style="margin-top:20px">
+        <div class="card-header">
+            <h3>Results</h3>
+        </div>
+        <div class="card-body">
+
+            {% if results.images %}
+            <div class="grid2">
+                {% for img in results.images %}
+                <div style="text-align:center">
+                    <h4>{{ img.title }}</h4>
+                    <img src="data:image/png;base64,{{ img.data }}"
+                        style="max-width:100%; border:1px solid var(--border)">
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if results.tables %}
+            {% for tbl in results.tables %}
+            <div class="table-wrap" style="margin-top:20px">
+                {{ tbl|safe }}
+            </div>
+            {% endfor %}
+            {% endif %}
+
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

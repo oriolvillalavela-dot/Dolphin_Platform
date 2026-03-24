@@ -1,0 +1,45 @@
+
+{% extends "base.html" %}
+{% block content %}
+<div class="section-header">
+  <h1>Chemicals DB</h1>
+  <div class="actions">
+    <input id="chemSearch" class="search" placeholder="Search (chem_id, name, CAS, SMILES, InChI…)" value="{{ search or '' }}"
+           onkeydown="if(event.key==='Enter'){ window.location='?q='+encodeURIComponent(this.value)}">
+    <button class="btn" data-action="open-new-chemical">+ New Chemical</button>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>chem_id</th><th>common_name_abb</th><th>cas</th><th>ro_srn</th><th>chemform</th>
+        <th>mw</th><th>mim</th><th>density</th><th>aggregate_state</th><th>stock_solution_c</th>
+        <th>smiles</th><th>inchi</th><th>inchi_key</th><th class="sticky-right"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in chemicals %}
+      <tr>
+        <td><a href="#" data-action="open-availability" data-chem-id="{{ c.chem_id }}">{{ c.chem_id }}</a></td>
+        <td>{{ c.common_name_abb }}</td>
+        <td>{{ c.cas or '' }}</td>
+        <td>{{ c.ro_srn or '' }}</td>
+        <td>{{ c.chemform or '' }}</td>
+        <td>{{ c.mw or '' }}</td>
+        <td>{{ c.mim or '' }}</td>
+        <td>{{ c.density or '' }}</td>
+        <td>{{ c.aggregate_state or '' }}</td>
+        <td>{{ c.stock_solution_c or '' }}</td>
+        
+        <td class="mono">{{ c.smiles or '' }}</td>
+        <td class="mono">{{ c.inchi or '' }}</td>
+        <td class="mono">{{ c.inchi_key or '' }}</td>
+        <td class="sticky-right"><button class="btn small" data-action="open-generate-bottle" data-chem-id="{{ c.chem_id }}">Generate bottle</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

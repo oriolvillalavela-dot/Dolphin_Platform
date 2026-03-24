@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="pd-container" id="pdApp">
+  <!-- Left Panel: Interactive Matrix -->
+  <div class="pd-matrix-panel">
+    <!-- Toolbar -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div style="display:flex; gap:12px; align-items:center;">
+        <h2 style="margin:0; font-weight:800; color:white; letter-spacing:-0.5px;">PLATE DESIGNER</h2>
+        <div style="width:1px; height:24px; background:var(--pd-border)"></div>
+        <input id="pdName" class="pd-input-dark" style="width:240px; font-size:14px; font-weight:600;"
+          placeholder="Untitled Experiment" onchange="PlateDesigner.updateName(this.value)">
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="pd-btn-glow" style="width:auto; padding:8px 16px;"
+          onclick="PlateDesigner.clearAll()">Reset</button>
+        <button class="pd-btn-glow" style="width:auto; padding:8px 16px;"
+          onclick="PlateDesigner.loadModal()">Load</button>
+        <button class="btn pd-btn-glow"
+          style="width:auto; padding:8px 16px; background:var(--accent); color:white; border:none;"
+          onclick="PlateDesigner.saveDesign()">Save Design</button>
+      </div>
+    </div>
+
+    <!-- Matrix Scroll Area -->
+    <div class="pd-grid-scroll">
+      <div id="pdGrid" class="pd-grid">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Legend & Context -->
+    <div
+      style="border-top:1px solid var(--pd-border); padding-top:12px; display:flex; justify-content:space-between; align-items:center;">
+      <div id="pdLegend" style="display:flex; gap:16px; font-size:11px; color:var(--pd-text-muted);">
+        <!-- Filled by JS -->
+      </div>
+      <button class="pd-btn-glow" style="width:auto;" onclick="PlateDesigner.exportSURF()">
+        Generate SURF .xlsx
+      </button>
+    </div>
+  </div>
+
+  <!-- Right Panel: Sidebar Controls -->
+  <div class="pd-sidebar">
+
+    <!-- 1. Plate Metadata -->
+    <div class="pd-panel">
+      <div class="pd-panel-head">
+        <span>PLATE METADATA</span>
+        <span style="font-size:10px; opacity:0.5;">Global</span>
+      </div>
+      <div class="pd-panel-body">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">Format</label>
+            <select id="pdSize" class="pd-input-dark" onchange="PlateDesigner.setSize(this.value)">
+              <option value="96">96-well (8x12)</option>
+              <option value="48">48-well (6x8)</option>
+              <option value="24">24-well (4x6)</option>
+            </select>
+          </div>
+          <div>
+            <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">Date</label>
+            <input type="date" id="meta_date" class="pd-input-dark"
+              onchange="PlateDesigner.updateMeta('rxn_date', this.value)">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div style="grid-column:span 2">
+            <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">ELN ID</label>
+            <input id="meta_eln" class="pd-input-dark" placeholder="ELN-XXXX-XXX"
+              onchange="PlateDesigner.updateMeta('eln_id', this.value)">
+          </div>
+          <div>
+            <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">Atmosphere</label>
+            <input id="meta_atm" class="pd-input-dark" placeholder="N2 / Air"
+              onchange="PlateDesigner.updateMeta('atmosphere', this.value)">
+          </div>
+          <div>
+            <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">Scale (mol)</label>
+            <input type="number" id="meta_scale" class="pd-input-dark" placeholder="1e-5" step="1e-6"
+              onchange="PlateDesigner.updateMeta('scale', this.value)">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">Reaction Tech</label>
+            <select id="meta_tech" class="pd-input-dark"
+              onchange="PlateDesigner.updateMeta('reaction_tech', this.value)">
+              <option value="standard">Standard</option>
+              <option value="photochemistry">Photochemistry</option>
+              <option value="electrochemical">Electrochemical</option>
+            </select>
+          </div>
+          <div id="meta_wave_group" style="display:none;">
+            <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">Wavelength
+              (nm)</label>
+            <input type="number" id="meta_wave" class="pd-input-dark" placeholder="450"
+              onchange="PlateDesigner.updateMeta('wavelength', this.value)">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Assignments -->
+    <div class="pd-panel">
+      <div class="pd-panel-head" style="border-left: 3px solid var(--accent);">
+        <span>ASSIGNMENT</span>
+        <span id="asScopeLabel"
+          style="font-size:10px; background:rgba(6,182,212,0.2); color:var(--accent); padding:2px 6px; border-radius:4px;">SELECTION</span>
+      </div>
+      <div class="pd-panel-body">
+        <!-- Role Select -->
+        <div>
+          <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">Role Category</label>
+          <select id="asRole" class="pd-input-dark" style="font-weight:600; color:white;"
+            onchange="PlateDesigner.onRoleChange(this.value)">
+            <!-- Populated by JS or Static -->
+            <option value="solvent">Solvent (Blue)</option>
+            <option value="ligand">Ligand (Magenta)</option>
+            <option value="catalyst_ni">Cat. Ni (Cyan)</option>
+            <option value="catalyst_ir">Cat. Ir (Cyan)</option>
+            <option value="reagent">Reagent (Lime)</option>
+            <option value="oxidant">Oxidant (Lime)</option>
+            <option value="additive">Additive (Magenta)</option>
+            <option value="startingmat">Starting Material</option>
+          </select>
+        </div>
+
+        <!-- Advanced Search -->
+        <div style="position:relative;">
+          <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">Chemical Search</label>
+          <input id="asChemSearch" class="pd-input-dark" placeholder="Type Chem ID, CAS, Name..." autocomplete="off">
+          <div id="asSearchResults" class="pd-search-res" style="display:none;"></div>
+        </div>
+
+        <!-- Parameters -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">Equivalents</label>
+            <input type="number" id="asEq" class="pd-input-dark" value="1.0" step="0.1">
+          </div>
+          <div id="asFractionGroup">
+            <label class="pd-text-muted" style="font-size:10px; display:block; margin-bottom:4px;">Fraction
+              (Vol)</label>
+            <input type="number" id="asFrac" class="pd-input-dark" value="1.0" step="0.05">
+          </div>
+        </div>
+
+        <button class="pd-btn-glow" style="margin-top:8px;" onclick="PlateDesigner.applyAssignment()">
+          APPLY TO SELECTION
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. Inspector -->
+    <div class="pd-panel" style="flex:1; display:flex; flex-direction:column;">
+      <div class="pd-panel-head">
+        <span>WELL INSPECTOR</span>
+        <span id="inspWell" style="color:var(--accent); font-family:monospace;"></span>
+      </div>
+      <div id="inspContent" style="flex:1; overflow-y:auto; padding:10px; font-size:12px; color:var(--pd-text-muted);">
+        <div style="text-align:center; padding-top:40px; opacity:0.3;">
+          Select or hover <br> a well to inspect
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

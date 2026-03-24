@@ -1,0 +1,141 @@
+/* Light Theme Overrides for LC-MS Module */
+:root {
+    --bg: #f8f9fa;
+    /* Light gray background */
+    --card: #ffffff;
+    /* White cards */
+    --fg: #212529;
+    /* Dark text */
+    --muted: #6c757d;
+    /* Muted text */
+    --border: #dee2e6;
+    /* Light borders */
+    --accent: #00508c;
+    /* Roche Blue for primary actions */
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Force body background */
+body {
+    background: var(--bg) !important;
+    color: var(--fg) !important;
+}
+
+/* Navbar specific overrides */
+.navbar {
+    background: #ffffff !important;
+    border-bottom: 1px solid var(--border) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.brand-text {
+    color: #00508c !important;
+    /* Roche Blue brand */
+}
+
+.nav-links a {
+    color: #495057 !important;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 20px;
+    /* Pill shape */
+    transition: all 0.2s;
+    text-decoration: none !important;
+}
+
+.nav-links a:hover {
+    background: #e9ecef;
+    color: #00508c !important;
+}
+
+.nav-links a.active {
+    background: #00508c !important;
+    color: #ffffff !important;
+}
+
+/* Card overrides */
+.card,
+.modal-card {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow) !important;
+    color: var(--fg) !important;
+}
+
+/* Form inputs */
+input,
+select,
+textarea,
+.search {
+    background: #ffffff !important;
+    border: 1px solid #ced4da !important;
+    color: #495057 !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #80bdff !important;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, .25);
+}
+
+/* Table overrides */
+.grid th {
+    background: #f8f9fa !important;
+    color: #495057 !important;
+    border-bottom: 2px solid #dee2e6 !important;
+    font-weight: 600;
+}
+
+.grid td {
+    border-bottom: 1px solid #dee2e6 !important;
+    color: #212529 !important;
+}
+
+.grid tr:hover td {
+    background-color: #f1f3f5 !important;
+}
+
+/* Buttons */
+.btn {
+    background: var(--accent) !important;
+    color: #fff !important;
+    font-weight: 500;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.btn.ghost {
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+    color: var(--accent) !important;
+}
+
+.btn.ghost:hover {
+    background: #e9ecef !important;
+}
+
+/* Section headers */
+h1,
+h2,
+h3 {
+    color: #212529 !important;
+}
+
+/* Helper classes */
+.hidden {
+    display: none !important;
+}
+
+.dim {
+    opacity: 0.5;
+}
+
+.hit {
+    background-color: #fff3cd !important;
+}
+
+/* Light yellow highlight */

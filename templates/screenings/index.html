@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='screenings/screenings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div id="screeningsRoot" data-page="dashboard" class="w-full max-w-[1500px] mx-auto">
+  <div class="flex items-center justify-between mb-5">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Screenings</h1>
+      <p class="text-slate-400 mt-1">Track laboratory screenings from planning to completion.</p>
+    </div>
+    <a href="{{ url_for('screenings.new_screening') }}"
+      class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors">
+      Create New Screening
+    </a>
+  </div>
+
+  <div class="screenings-panel">
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <input id="screeningsQuery" type="text" class="screenings-input flex-1 min-w-[260px]"
+        placeholder="Search by ELN-ID, project, theme or user">
+      <select id="screeningsStatus" class="screenings-input w-[220px]">
+        <option value="">All statuses</option>
+        <option value="Planning">Planning</option>
+        <option value="Awaiting Analysis">Awaiting Analysis</option>
+        <option value="Awaiting Validation">Awaiting Validation</option>
+        <option value="Completed">Completed</option>
+      </select>
+      <button id="screeningsFilterBtn" class="screenings-btn">Apply</button>
+    </div>
+
+    <div class="screenings-table-wrap">
+      <table class="screenings-table">
+        <thead>
+          <tr>
+            <th>ELN-ID</th>
+            <th>Project name</th>
+            <th>Project ID</th>
+            <th>Theme nº</th>
+            <th>Date</th>
+            <th>User</th>
+            <th>Plate Design</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="screeningsTableBody">
+          <tr>
+            <td colspan="8" class="text-center text-slate-400 py-6">Loading screenings...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex items-center justify-between mt-4">
+      <button id="screeningsPrev" class="screenings-btn-secondary">Previous</button>
+      <span id="screeningsPageInfo" class="text-slate-400 text-sm"></span>
+      <button id="screeningsNext" class="screenings-btn-secondary">Next</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='screenings/screenings.js') }}"></script>
+{% endblock %}
+

@@ -1,0 +1,37 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chem Inventory & HTE</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  <div id="splash" class="splash">
+    <div class="splash-logo">
+      <div class="splash-ring"></div>
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Dolphin Platform logo">
+    </div>
+  </div>
+  <nav class="navbar">
+    <div class="container nav-inner">
+      <a href="{{ url_for('chemicals') }}" class="brand"><img class="brand-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Dolphin Platform">DOLPHIN PLATFORM</a>
+      <div class="nav-links">
+        <a href="{{ url_for('chemicals') }}">Chemicals DB</a>
+        <a href="{{ url_for('bottles') }}">Bottles DB</a>
+        <a href="{{ url_for('batches') }}">Batch DB</a>
+        <a href="{{ url_for('plate_new') }}">Plate Designer</a>
+        <a href="{{ url_for('surf_table') }}">SURF</a>
+      </div>
+    </div>
+  </nav>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <div id="modalHost"></div>
+  <div id="overlay" class="overlay hidden"><div class="spinner"></div></div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+streamlit==1.38.0
+pandas==2.2.2
+numpy==1.26.4
+matplotlib==3.8.4
+rdkit-pypi==2022.9.5
+molmass==2024.10.25
+python-dateutil==2.9.0.post0

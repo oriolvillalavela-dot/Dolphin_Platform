@@ -1,0 +1,31 @@
+
+{% extends "base.html" %}
+{% block content %}
+<div class="section-header">
+  <h1>Plates</h1>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('plate_new') }}">+ New Plate</a>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="grid">
+    <thead><tr><th>ELN</th><th>#</th><th>Type</th><th>Mixing</th><th>Atm</th><th>λ nm</th><th>Scale (mol)</th><th>Conc (mol/L)</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for p in plates %}
+      <tr>
+        <td>{{ p.eln_id }}</td>
+        <td>{{ p.plate_no }}</td>
+        <td>{{ p.plate_type }}</td>
+        <td>{{ p.mixing }}</td>
+        <td>{{ p.atmosphere }}</td>
+        <td>{{ p.wavelength_nm }}</td>
+        <td>{{ p.scale_mol }}</td>
+        <td>{{ p.concentration_mol_l }}</td>
+        <td><a class="btn small" href="{{ url_for('plate_edit', plate_id=p.id) }}">Edit</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

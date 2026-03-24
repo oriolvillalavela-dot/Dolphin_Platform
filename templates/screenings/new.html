@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='screenings/screenings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div id="screeningsRoot" data-page="new" class="w-full max-w-[1550px] mx-auto">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-white">New Screening</h1>
+    <p class="text-slate-400 mt-1">Upload ELN export, define metadata, choose or build a plate design, then generate provisional SURF.</p>
+  </div>
+
+  <div class="screenings-grid">
+    <section class="screenings-panel">
+      <h2 class="screenings-step-title">Step 1 · ELN Upload</h2>
+      <div class="flex gap-3 items-center flex-wrap">
+        <input id="elnFileInput" type="file" accept=".xlsx,.xls" class="screenings-input max-w-[420px]">
+        <button id="parseElnBtn" class="screenings-btn">Parse ELN Export</button>
+      </div>
+      <div id="elnSummary" class="mt-4 text-sm text-slate-300 screenings-subpanel">
+        Upload an ELN export file to extract metadata and StMat/Product entries.
+      </div>
+    </section>
+
+    <section class="screenings-panel">
+      <h2 class="screenings-step-title">Step 2 · Manual Metadata</h2>
+      <div class="screenings-form-grid">
+        <label>Atmosphere<input id="manualAtmosphere" class="screenings-input" placeholder="e.g. N2"></label>
+        <label>Temperature (°C)<input id="manualTemperature" class="screenings-input" type="number" step="0.1"></label>
+        <label>Reaction Time (h)<input id="manualReactionTime" class="screenings-input" type="number" step="0.1"></label>
+        <label>Agitation
+          <select id="manualAgitation" class="screenings-input">
+            <option value="">Select</option>
+            <option value="Shaking">Shaking</option>
+            <option value="Stirring">Stirring</option>
+          </select>
+        </label>
+        <label class="flex items-center gap-2 mt-6">
+          <input id="manualPhotochem" type="checkbox">
+          <span>Photochemistry</span>
+        </label>
+        <label id="manualWavelengthWrap" class="hidden">Wavelength (nm)<input id="manualWavelength" class="screenings-input"
+            type="number" step="1"></label>
+      </div>
+    </section>
+
+    <section class="screenings-panel">
+      <h2 class="screenings-step-title">Step 3 · Plate Design Strategy</h2>
+      <div class="flex flex-wrap gap-4">
+        <label class="screenings-radio"><input type="radio" name="designStrategy" value="existing" checked> Use Existing Design</label>
+        <label class="screenings-radio"><input type="radio" name="designStrategy" value="edit"> Edit Existing Design</label>
+        <label class="screenings-radio"><input type="radio" name="designStrategy" value="new"> Create New Design</label>
+      </div>
+
+      <div id="existingDesignWrap" class="mt-4">
+        <select id="existingDesignSelect" class="screenings-input w-full"></select>
+      </div>
+
+      <div id="newDesignWrap" class="mt-4 hidden">
+        <div class="flex gap-3 items-center flex-wrap mb-3">
+          <label>Plate Size
+            <select id="plateSize" class="screenings-input">
+              <option value="24">24 well</option>
+              <option value="48">48 well</option>
+              <option value="96">96 well</option>
+            </select>
+          </label>
+          <button id="addSlotBtn" class="screenings-btn-secondary mt-5">Add Role Slot</button>
+          <button id="generateLayoutBtn" class="screenings-btn mt-5">Generate Layout</button>
+        </div>
+        <div id="slotContainer" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <section class="screenings-panel">
+      <h2 class="screenings-step-title">Step 4 · Interactive 2D Plate Matrix</h2>
+      <div class="screenings-form-grid mb-3">
+        <label>Design Name<input id="designNameInput" class="screenings-input" placeholder="Unique_Plate_Design_Name"></label>
+      </div>
+      <p class="text-slate-400 text-sm mb-3">
+        Drag and drop row/column headers or use the swap dropdowns to reorder screening conditions.
+      </p>
+      <div class="screenings-preview-layout matrix-layout">
+        <div>
+          <div id="designGrid" class="plate-matrix-wrap"></div>
+        </div>
+        <div>
+          <div class="screenings-subpanel mb-3">
+            <label class="text-sm text-slate-300">Global Components</label>
+            <div id="globalComponentsBox" class="global-components-list mt-2"></div>
+          </div>
+          <div class="screenings-subpanel mb-3">
+            <label class="text-sm text-slate-300">Selected Well (Unique Components)</label>
+            <div id="selectedWellPanel" class="selected-well-panel mt-2 text-sm text-slate-300">Click a well to inspect.</div>
+          </div>
+          <details class="screenings-subpanel">
+            <summary class="cursor-pointer text-sm text-slate-300">Advanced JSON Preview</summary>
+            <textarea id="designJsonPreview" class="screenings-input w-full h-[180px] font-mono text-xs mt-2" readonly></textarea>
+          </details>
+          <div class="mt-2 flex gap-2">
+            <span id="selectedWellLabel" class="text-sm text-slate-400 mt-2">No well selected</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screenings-panel">
+      <h2 class="screenings-step-title">Step 5 · Finalization</h2>
+      <p class="text-slate-400 mb-3">This saves the selected/edited/new design, creates or updates the screening, then generates the provisional SURF file.</p>
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="finalizeBtn" class="screenings-btn">Save + Generate SURF</button>
+        <a href="{{ url_for('screenings.dashboard') }}" class="screenings-btn-secondary">Cancel</a>
+      </div>
+      <p id="finalizeStatus" class="text-sm text-slate-300 mt-3"></p>
+    </section>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='screenings/screenings.js') }}"></script>
+{% endblock %}

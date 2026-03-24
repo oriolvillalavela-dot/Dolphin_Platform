@@ -1,0 +1,1165 @@
+{% extends "lc_ms/base_lcms.html" %}
+{% block content %}
+<style>
+  /* Local styling specific to LC-MS SPA */
+  .lcms-tab-btn.active {
+    color: white !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .lcms-pane {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .lcms-pane.active {
+    display: block;
+  }
+
+  .lcms-input {
+    background-color: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    color: white;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .lcms-input:focus {
+    border-color: #06b6d4;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+  }
+
+  .lcms-label {
+    display: block;
+    font-size: 0.875rem;
+    color: #94a3b8;
+    /* text-slate-400 */
+    margin-bottom: 0.25rem;
+  }
+
+  td.editable-cell input {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 4px;
+    border-radius: 4px;
+  }
+
+  td.editable-cell input:focus {
+    border: 1px solid #06b6d4;
+    outline: none;
+    background: #0f172a;
+  }
+
+  /* Loading Spinner */
+  .loader {
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border-left-color: #06b6d4;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+</style>
+
+<div class="w-full max-w-[1400px] mx-auto min-h-full pb-20 -mt-6">
+  <div class="mb-8 flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+          class="text-cyan-400" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+        LC-MS Measurements
+      </h1>
+      <p class="text-slate-400 mt-1">Manage ELNs, IPC, and Purification workflows natively.</p>
+    </div>
+  </div>
+
+  <div id="alert-container" class="mb-6 empty:hidden"></div>
+
+  <!-- Pane: ELN Registry -->
+  <div id="pane-eln-registry" class="lcms-pane active">
+
+    <!-- Register New ELN block -->
+    <div
+      class="bg-slate-900 border border-cyan-500/30 rounded-2xl p-6 mb-8 shadow-[0_0_15px_rgba(6,182,212,0.15)] relative overflow-hidden group hover:border-cyan-400/50 transition-colors">
+      <!-- Glow effect -->
+      <div
+        class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(6,182,212,0.1),_transparent_60%)] pointer-events-none">
+      </div>
+
+      <h2 class="text-xl font-bold text-white mb-6 relative z-10 flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-400">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        Register a New ELN
+      </h2>
+      <form id="form-new-eln" onsubmit="submitNewELN(event)" class="relative z-10">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <div>
+            <label class="lcms-label">ELN ID *</label>
+            <input type="text" id="ne_eln_id" class="lcms-input" placeholder="e.g. ELN045639-408" required>
+          </div>
+          <div>
+            <label class="lcms-label">Chemist *</label>
+            <div class="flex gap-2">
+              <select id="ne_chemist" class="lcms-input" required></select>
+              <button type="button" class="btn secondary px-3" onclick="openChemistModal()"
+                title="Manage Chemists">⚙️</button>
+            </div>
+          </div>
+          <!-- Phase 1: Dynamic Starting Materials -->
+          <div class="col-span-full mb-4">
+            <label class="lcms-label font-bold text-white mb-2 pb-1 border-b border-white/10">Starting Materials</label>
+            <div id="dynamic-stmats-container" class="space-y-3 mb-3">
+              <!-- Rows will be injected here via JS -->
+            </div>
+            <button type="button" onclick="addStmatRow()"
+              class="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/30 px-3 py-1.5 rounded transition-colors">+
+              Add Starting Material</button>
+          </div>
+          <!-- Phase 2: Dynamic Products -->
+          <div class="col-span-full mb-4 pt-4 border-t border-white/5">
+            <label class="lcms-label font-bold text-white mb-2 pb-1 border-b border-white/10">Reaction Products</label>
+            <div id="dynamic-products-container" class="space-y-4 mb-3">
+              <!-- Rows will be injected here via JS -->
+            </div>
+            <button type="button" onclick="addProductRow()"
+              class="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/30 px-3 py-1.5 rounded transition-colors">+
+              Add Product</button>
+          </div>
+          <!-- Phase 3: Upload Reaction Scheme -->
+          <div class="col-span-full mb-6 relative group">
+            <input type="file" id="reaction-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              accept=".rxn" onchange="uploadReactionFile(this)">
+            <div
+              class="w-full bg-gradient-to-r from-cyan-600/20 to-sky-600/20 group-hover:from-cyan-500/30 group-hover:to-sky-500/30 border border-cyan-500/50 text-cyan-300 font-bold py-4 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.2)] transition-all flex items-center justify-center gap-3 text-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="group-hover:scale-110 transition-transform">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Upload Reaction File (.rxn)
+            </div>
+            <div id="reaction-upload-status" class="absolute -bottom-6 left-0 text-xs w-full text-center mt-2"></div>
+          </div>
+
+          <div class="flex items-center gap-4 border-t border-white/5 pt-4">
+            <button type="submit"
+              class="bg-cyan-500 hover:bg-cyan-400 text-slate-900 px-8 py-3 rounded-lg font-bold transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.6)]">Save
+              ELN</button>
+            <span class="text-slate-400 text-sm italic">At least one molecular formula is required.</span>
+          </div>
+      </form>
+    </div>
+
+    <!-- ELN Database List -->
+    <div class="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[600px]">
+      <div class="p-5 border-b border-white/5 flex justify-between items-center bg-slate-900/50">
+        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="text-slate-400">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+            <line x1="9" y1="21" x2="9" y2="9"></line>
+          </svg>
+          ELN Database
+        </h2>
+        <div class="w-80 relative">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="search-elns"
+            class="lcms-input text-sm pl-9 rounded-full bg-slate-800 focus:bg-slate-900 transition-colors"
+            placeholder="Search by ELN ID..." oninput="debounce(fetchElns, 300)()">
+        </div>
+      </div>
+      <div class="flex-1 overflow-auto">
+        <table class="grid w-full text-left text-sm whitespace-nowrap">
+          <thead class="text-slate-400 border-b border-white/5 bg-slate-900/80 sticky top-0 z-10 backdrop-blur-sm">
+            <tr>
+              <th class="p-4 font-semibold uppercase tracking-wider text-xs">ELN ID</th>
+              <th class="p-4 font-semibold uppercase tracking-wider text-xs">Chemist</th>
+              <th class="p-4 font-semibold uppercase tracking-wider text-xs">stmat_1</th>
+              <th class="p-4 font-semibold uppercase tracking-wider text-xs">stmat_2</th>
+              <th class="p-4 font-semibold uppercase tracking-wider text-xs">product_1</th>
+              <th class="p-4 font-semibold uppercase tracking-wider text-xs">product_2</th>
+              <th class="p-4 font-semibold uppercase tracking-wider text-xs">product_3</th>
+              <th class="p-4 font-semibold uppercase tracking-wider text-xs">product_4</th>
+              <th
+                class="p-4 font-semibold uppercase tracking-wider text-xs text-right sticky right-0 bg-slate-900/90 backdrop-blur-md">
+                Actions</th>
+            </tr>
+          </thead>
+          <tbody id="eln-tbody" class="text-slate-300 divide-y divide-white/5">
+            <!-- Inserted via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pane: IPC Generator -->
+  <div id="pane-generator-ipc" class="lcms-pane">
+    <div class="bg-[#0B1120] border border-white/5 rounded-2xl p-6 shadow-xl max-w-4xl">
+      <h2 class="text-xl font-bold text-white mb-2">IPC Generator</h2>
+      <p class="text-slate-400 text-sm mb-6">Generate an In-Process Control (IPC) RPT request file. You can submit
+        multiple rows at once.</p>
+
+      <div class="bg-[#111827] rounded-xl border border-white/5 overflow-hidden mb-4">
+        <table class="w-full text-left text-sm whitespace-nowrap">
+          <thead class="text-slate-400 bg-black/20">
+            <tr>
+              <th class="p-3 font-medium">ELN ID</th>
+              <th class="p-3 font-medium w-32">IPC No.</th>
+              <th class="p-3 font-medium w-32">Duration (h)</th>
+              <th class="p-3 font-medium w-16"></th>
+            </tr>
+          </thead>
+          <tbody id="ipc-gen-tbody">
+            <!-- Initial row -->
+            <tr>
+              <td class="p-2"><input type="text" class="lcms-input ipc-row-eln" placeholder="e.g. ELN045..." required>
+              </td>
+              <td class="p-2"><input type="number" class="lcms-input ipc-row-no" placeholder="e.g. 1" required></td>
+              <td class="p-2"><input type="number" class="lcms-input ipc-row-dur" placeholder="e.g. 1" required></td>
+              <td class="p-2 text-center">
+                <button type="button" class="text-red-400 hover:text-red-300 text-lg opacity-50 cursor-not-allowed"
+                  disabled>×</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="p-3 border-t border-white/5 bg-black/10">
+          <button type="button" class="text-sky-400 hover:text-sky-300 text-sm font-medium" onclick="addIpcRow()">+ Add
+            Row</button>
+        </div>
+      </div>
+
+      <div>
+        <button type="button"
+          class="bg-sky-500 hover:bg-sky-400 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+          onclick="submitIpcGen()">Generate IPC.txt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pane: Purification Generator -->
+  <div id="pane-generator-purif" class="lcms-pane">
+    <div class="bg-[#0B1120] border border-white/5 rounded-2xl p-6 shadow-xl max-w-xl">
+      <h2 class="text-xl font-bold text-white mb-2">Purification Generator</h2>
+      <p class="text-slate-400 text-sm mb-6">Generate a Purification RPT file.</p>
+
+      <form onsubmit="submitPurifGen(event)">
+        <div class="mb-4">
+          <label class="lcms-label">ELN ID *</label>
+          <input type="text" id="pg_eln" class="lcms-input" placeholder="e.g. ELN045639-408" required>
+        </div>
+        <div class="mb-4 flex gap-4">
+          <div class="flex-1">
+            <label class="lcms-label">Purification No. *</label>
+            <input type="number" id="pg_no" class="lcms-input" placeholder="1" value="1" required>
+          </div>
+          <div class="flex-1">
+            <label class="lcms-label">Method</label>
+            <div class="flex gap-2">
+              <select id="pg_method" class="lcms-input"></select>
+              <button type="button" class="btn secondary px-3" onclick="openMethodModal()"
+                title="Manage Methods">⚙️</button>
+            </div>
+          </div>
+        </div>
+        <div class="mb-6">
+          <label class="lcms-label">Fractions *</label>
+          <input type="text" id="pg_fracs" class="lcms-input" placeholder="e.g. 1, 2, 4-6, F8, 9+10" required>
+          <p class="text-xs text-slate-500 mt-2">Space, comma or semicolon separated. Use formats like 3, 5-7, 8+9.</p>
+        </div>
+        <button type="submit"
+          class="bg-sky-500 hover:bg-sky-400 text-white px-6 py-2 rounded-lg font-medium transition-colors w-full">Generate
+          Purification.txt</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Pane: Products Generator -->
+  <div id="pane-generator-products" class="lcms-pane">
+    <div class="bg-[#0B1120] border border-white/5 rounded-2xl p-6 shadow-xl max-w-xl">
+      <h2 class="text-xl font-bold text-white mb-2">Products Generator</h2>
+      <p class="text-slate-400 text-sm mb-6">Generate a generic Products file for an ELN.</p>
+
+      <form onsubmit="submitProdGen(event)">
+        <div class="mb-4">
+          <label class="lcms-label">ELN ID *</label>
+          <input type="text" id="prodg_eln" class="lcms-input" placeholder="e.g. ELN045639-408" required>
+        </div>
+        <div class="mb-6">
+          <label class="lcms-label">Product Numbers *</label>
+          <input type="text" id="prodg_nums" class="lcms-input" placeholder="e.g. 1, 2, 3" required>
+          <p class="text-xs text-slate-500 mt-2">Comma-separated integers.</p>
+        </div>
+        <button type="submit"
+          class="bg-sky-500 hover:bg-sky-400 text-white px-6 py-2 rounded-lg font-medium transition-colors w-full">Generate
+          PRODUCTS.txt</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Pane: IPC Measurements -->
+  <div id="pane-meas-ipc" class="lcms-pane">
+    <div class="bg-[#0B1120] border border-white/5 rounded-2xl shadow-xl overflow-hidden flex flex-col h-[700px]">
+      <div class="p-4 border-b border-white/10 flex justify-between items-center bg-[#111827]">
+        <h2 class="text-xl font-bold text-white">IPC Measurements</h2>
+        <div class="w-72">
+          <input type="text" id="search-meas-ipc" class="lcms-input text-sm" placeholder="Search by ELN ID..."
+            oninput="debounce(fetchMeasIpc, 300)()">
+        </div>
+      </div>
+      <div class="flex-1 overflow-auto p-4">
+        <table class="grid w-full text-left text-sm whitespace-nowrap">
+          <thead class="text-slate-400 border-b border-white/10">
+            <tr>
+              <th class="pb-2 font-medium">ID</th>
+              <th class="pb-2 font-medium">ELN ID</th>
+              <th class="pb-2 font-medium">IPC No.</th>
+              <th class="pb-2 font-medium">Dur. (h)</th>
+              <th class="pb-2 font-medium">Chemist</th>
+              <th class="pb-2 font-medium">Method (min)</th>
+              <th class="pb-2 font-medium">Instrument</th>
+              <th class="pb-2 font-medium">File Name</th>
+              <th class="pb-2 font-medium">Result</th>
+            </tr>
+          </thead>
+          <tbody id="meas-ipc-tbody" class="text-slate-300">
+            <!-- JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pane: PURIF Measurements -->
+  <div id="pane-meas-purif" class="lcms-pane">
+    <div class="bg-[#0B1120] border border-white/5 rounded-2xl shadow-xl overflow-hidden flex flex-col h-[700px]">
+      <div class="p-4 border-b border-white/10 flex justify-between items-center bg-[#111827]">
+        <h2 class="text-xl font-bold text-white">Purification Measurements</h2>
+        <div class="w-72">
+          <input type="text" id="search-meas-purif" class="lcms-input text-sm" placeholder="Search by ELN ID..."
+            oninput="debounce(fetchMeasPurif, 300)()">
+        </div>
+      </div>
+      <div class="flex-1 overflow-auto p-4">
+        <table class="grid w-full text-left text-sm whitespace-nowrap">
+          <thead class="text-slate-400 border-b border-white/10">
+            <tr>
+              <th class="pb-2 font-medium">ID</th>
+              <th class="pb-2 font-medium">ELN ID</th>
+              <th class="pb-2 font-medium">Purif No.</th>
+              <th class="pb-2 font-medium">Fraction</th>
+              <th class="pb-2 font-medium">Chemist</th>
+              <th class="pb-2 font-medium">Method</th>
+              <th class="pb-2 font-medium">Instr.</th>
+              <th class="pb-2 font-medium">File Name</th>
+              <th class="pb-2 font-medium">Result</th>
+            </tr>
+          </thead>
+          <tbody id="meas-purif-tbody" class="text-slate-300">
+            <!-- JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Chemists Management Modal -->
+<div id="chemistsModal"
+  class="modal hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  <div
+    class="modal-card bg-[#0B1120] border border-white/10 rounded-2xl w-[500px] shadow-2xl flex flex-col max-h-[90vh]">
+    <div class="p-4 border-b border-white/10 flex justify-between items-center">
+      <h3 class="text-lg font-bold text-white">Manage Chemists</h3>
+      <button class="text-slate-400 hover:text-white"
+        onclick="document.getElementById('chemistsModal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="p-4 flex-1 overflow-auto">
+      <div class="flex gap-2 mb-4">
+        <input id="newChemUsername" class="lcms-input" placeholder="username (e.g. villalao)">
+        <input id="newChemUserID" class="lcms-input" placeholder="ID (e.g. OV)">
+        <button class="bg-sky-500 hover:bg-sky-400 text-white px-4 rounded-lg font-medium"
+          onclick="addChemist()">Add</button>
+      </div>
+      <table class="w-full text-left text-sm text-slate-300">
+        <thead class="text-slate-500 border-b border-white/10">
+          <tr>
+            <th>Username</th>
+            <th>User ID</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="chemists-modal-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Methods Management Modal -->
+<div id="methodsModal"
+  class="modal hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  <div
+    class="modal-card bg-[#0B1120] border border-white/10 rounded-2xl w-[400px] shadow-2xl flex flex-col max-h-[90vh]">
+    <div class="p-4 border-b border-white/10 flex justify-between items-center">
+      <h3 class="text-lg font-bold text-white">Manage Purif Methods</h3>
+      <button class="text-slate-400 hover:text-white"
+        onclick="document.getElementById('methodsModal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="p-4 flex-1 overflow-auto">
+      <div class="flex gap-2 mb-4">
+        <input id="newMethodName" class="lcms-input" placeholder="e.g. SFC">
+        <button class="bg-sky-500 hover:bg-sky-400 text-white px-4 rounded-lg font-medium"
+          onclick="addMethod()">Add</button>
+      </div>
+      <ul id="methods-modal-list" class="text-slate-300 text-sm space-y-2"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- SINGLE PAGE APPLICATION SCRIPTS -->
+<script>
+  let ALL_CHEMISTS = [];
+  let ALL_METHODS = [];
+
+  // Initialize
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchChemists();
+    fetchMethods();
+    fetchElns();
+    // If hash dictates tab
+    if (window.location.hash) {
+      const tabId = window.location.hash.replace('#', '');
+      const btn = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
+      if (btn) switchTab(tabId);
+    }
+  });
+
+  // UI Utilities
+  function showAlert(msg, type = 'error') {
+    const c = document.getElementById('alert-container');
+    const color = type === 'error' ? 'red' : 'green';
+    c.innerHTML = `<div class="bg-[${color}-500/10] border border-[${color}-500/30] text-[${color}-400] px-4 py-3 rounded-xl mb-4 text-sm flex justify-between">
+         <span>${msg.replace(/\n/g, '<br>')}</span>
+         <button onclick="this.parentElement.remove()" class="ml-4 hover:text-white">✕</button>
+       </div>`;
+  }
+  function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  }
+
+  // --- TABS ---
+  function switchTab(tabId) {
+    document.querySelectorAll('.lcms-pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.lcms-tab-btn').forEach(el => el.classList.remove('active'));
+
+    const pane = document.getElementById('pane-' + tabId);
+    if (pane) pane.classList.add('active');
+
+    const btn = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
+    if (btn) btn.classList.add('active');
+
+    window.location.hash = tabId;
+
+    if (tabId === 'eln-registry') fetchElns();
+    if (tabId === 'meas-ipc') fetchMeasIpc();
+    if (tabId === 'meas-purif') fetchMeasPurif();
+  }
+
+  // --- DATA FETCHING ---
+  async function fetchChemists() {
+    try {
+      const r = await fetch('/api/lc-ms/chemists');
+      ALL_CHEMISTS = await r.json();
+      const sel = document.getElementById('ne_chemist');
+      sel.innerHTML = ALL_CHEMISTS.map(c => `<option value="${c.username}">${c.username} (${c.user_id})</option>`).join('');
+
+      const tb = document.getElementById('chemists-modal-tbody');
+      tb.innerHTML = ALL_CHEMISTS.map(c => `
+         <tr class="border-b border-white/5">
+           <td class="py-2">${c.username}</td>
+           <td class="py-2">${c.user_id}</td>
+           <td class="py-2 text-right"><button onclick="deleteChemist('${c.username}')" class="text-red-400 hover:text-red-300">Del</button></td>
+         </tr>
+       `).join('');
+    } catch (e) { console.error(e); }
+  }
+
+  async function fetchMethods() {
+    try {
+      const r = await fetch('/api/lc-ms/purif-methods');
+      ALL_METHODS = await r.json();
+      const sel = document.getElementById('pg_method');
+      sel.innerHTML = `<option value="">-- Optional --</option>` + ALL_METHODS.map(m => `<option value="${m}">${m}</option>`).join('');
+
+      const lst = document.getElementById('methods-modal-list');
+      lst.innerHTML = ALL_METHODS.map(m => `<li>• ${m}</li>`).join('');
+    } catch (e) { console.error(e); }
+  }
+
+  // --- CHEMISTS MODAL ---
+  function openChemistModal() { document.getElementById('chemistsModal').classList.remove('hidden'); }
+  async function addChemist() {
+    const un = document.getElementById('newChemUsername').value;
+    const uid = document.getElementById('newChemUserID').value;
+    if (!un || !uid) return;
+    const r = await fetch('/api/lc-ms/chemists', {
+      method: 'POST', body: JSON.stringify({ username: un, user_id: uid }), headers: { 'Content-Type': 'application/json' }
+    });
+    const res = await r.json();
+    if (res.error) alert(res.error);
+    else { document.getElementById('newChemUsername').value = ''; document.getElementById('newChemUserID').value = ''; fetchChemists(); }
+  }
+  async function deleteChemist(un) {
+    if (!confirm(`Delete chemist ${un}?`)) return;
+    const r = await fetch(`/api/lc-ms/chemists/${encodeURIComponent(un)}`, { method: 'DELETE' });
+    const res = await r.json();
+    if (res.error) alert(res.error);
+    else fetchChemists();
+  }
+
+  // --- METHODS MODAL ---
+  function openMethodModal() { document.getElementById('methodsModal').classList.remove('hidden'); }
+  async function addMethod() {
+    const name = document.getElementById('newMethodName').value;
+    if (!name) return;
+    const r = await fetch('/api/lc-ms/purif-methods', {
+      method: 'POST', body: JSON.stringify({ name: name }), headers: { 'Content-Type': 'application/json' }
+    });
+    const res = await r.json();
+    if (res.error) alert(res.error);
+    else { document.getElementById('newMethodName').value = ''; fetchMethods(); }
+  }
+
+  // --- ELN REGISTRY ---
+  async function fetchElns() {
+    const q = document.getElementById('search-elns').value;
+    try {
+      const r = await fetch(`/api/lc-ms/elns?q=${encodeURIComponent(q)}&limit=100`);
+      const res = await r.json();
+      const tb = document.getElementById('eln-tbody');
+      tb.innerHTML = res.items.map(e => `
+         <tr class="hover:bg-cyan-900/10 transition-colors group" data-id="${e.eln_id}">
+            <td class="p-4 pr-6 font-mono font-medium text-white">${e.eln_id}</td>
+            <td class="p-4 pr-6">${e.chemist}</td>
+            <td class="p-4 pr-6 editable-cell" data-f="stmat_1_chemform"><span>${e.stmat_1_chemform || ''}</span><input type="text" class="hidden" value="${e.stmat_1_chemform || ''}"></td>
+            <td class="p-4 pr-6 editable-cell" data-f="stmat_2_chemform"><span>${e.stmat_2_chemform || ''}</span><input type="text" class="hidden" value="${e.stmat_2_chemform || ''}"></td>
+            <td class="p-4 pr-6 editable-cell" data-f="product_1_chemform"><span>${e.product_1_chemform || ''}</span><input type="text" class="hidden" value="${e.product_1_chemform || ''}"></td>
+            <td class="p-4 pr-6 editable-cell" data-f="product_2_chemform"><span>${e.product_2_chemform || ''}</span><input type="text" class="hidden" value="${e.product_2_chemform || ''}"></td>
+            <td class="p-4 pr-6 editable-cell" data-f="product_3_chemform"><span>${e.product_3_chemform || ''}</span><input type="text" class="hidden" value="${e.product_3_chemform || ''}"></td>
+            <td class="p-4 pr-6 editable-cell" data-f="product_4_chemform"><span>${e.product_4_chemform || ''}</span><input type="text" class="hidden" value="${e.product_4_chemform || ''}"></td>
+            <td class="p-4 text-right sticky right-0 bg-slate-900 group-hover:bg-slate-800 transition-colors w-24">
+               <div class="flex justify-end items-center gap-2">
+                 <button class="text-slate-400 hover:text-cyan-400 transition-colors edit-btn p-1" title="Edit">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                 </button>
+                 <button class="text-green-500 hover:bg-green-500/20 p-1 rounded transition-colors hidden save-btn" title="Save">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                 </button>
+                 <button class="text-red-400 hover:bg-red-400/20 p-1 rounded transition-colors hidden cancel-btn" title="Cancel">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                 </button>
+               </div>
+            </td>
+         </tr>
+       `).join('');
+
+      // Bind inline edits
+      tb.querySelectorAll('.edit-btn').forEach(btn => btn.onclick = function () {
+        const tr = this.closest('tr');
+        tr.querySelectorAll('.editable-cell').forEach(td => { td.querySelector('span').classList.add('hidden'); td.querySelector('input').classList.remove('hidden'); });
+        tr.querySelector('.edit-btn').classList.add('hidden');
+        tr.querySelector('.save-btn').classList.remove('hidden');
+        tr.querySelector('.cancel-btn').classList.remove('hidden');
+      });
+      tb.querySelectorAll('.cancel-btn').forEach(btn => btn.onclick = function () {
+        const tr = this.closest('tr');
+        tr.querySelectorAll('.editable-cell').forEach(td => { td.querySelector('span').classList.remove('hidden'); td.querySelector('input').classList.add('hidden'); td.querySelector('input').value = td.querySelector('span').textContent; });
+        tr.querySelector('.edit-btn').classList.remove('hidden');
+        tr.querySelector('.save-btn').classList.add('hidden');
+        tr.querySelector('.cancel-btn').classList.add('hidden');
+      });
+      tb.querySelectorAll('.save-btn').forEach(btn => btn.onclick = async function () {
+        const tr = this.closest('tr');
+        const id = tr.getAttribute('data-id');
+        let payload = {};
+        tr.querySelectorAll('.editable-cell').forEach(td => {
+          const key = td.getAttribute('data-f');
+          const val = td.querySelector('input').value;
+          payload[key] = val;
+        });
+        try {
+          const r = await fetch(`/api/lc-ms/elns/${encodeURIComponent(id)}`, {
+            method: 'PATCH', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' }
+          });
+          const res = await r.json();
+          if (res.ok) {
+            tr.querySelectorAll('.editable-cell').forEach(td => {
+              const v = td.querySelector('input').value; td.querySelector('span').textContent = v;
+              td.querySelector('span').classList.remove('hidden'); td.querySelector('input').classList.add('hidden');
+            });
+            tr.querySelector('.edit-btn').classList.remove('hidden');
+            tr.querySelector('.save-btn').classList.add('hidden');
+            tr.querySelector('.cancel-btn').classList.add('hidden');
+          } else { alert(res.error); }
+        } catch (e) { alert(e); }
+      });
+    } catch (e) { console.error(e); }
+  }
+
+  // --- PHASE 1: DYNAMIC STARTING MATERIALS ---
+  function addStmatRow() {
+    const container = document.getElementById('dynamic-stmats-container');
+    const row = document.createElement('div');
+    row.className = 'flex gap-4 items-end stmat-row relative';
+    row.innerHTML = `
+      <div class="flex-1">
+        <label class="lcms-label text-xs">Chem ID</label>
+        <input type="text" class="lcms-input stmat-id-input w-full" placeholder="e.g. Chem_68" onblur="fetchChemFormula(this)">
+      </div>
+      <div class="flex-1">
+        <label class="lcms-label text-xs">Molecular Formula (from DB)</label>
+        <div class="relative">
+          <input type="text" class="lcms-input stmat-formula-input w-full bg-slate-800/50 text-slate-400 border-dashed" placeholder="Auto-populated" readonly>
+          <span class="stmat-status absolute right-3 top-1/2 -translate-y-1/2 text-xs"></span>
+        </div>
+      </div>
+      <button type="button" class="text-slate-500 hover:text-red-400 p-2 mb-1 transition-colors" onclick="removeStmatRow(this)" title="Remove Reactant">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    `;
+    container.appendChild(row);
+  }
+
+  function removeStmatRow(btn) {
+    btn.closest('.stmat-row').remove();
+  }
+
+  async function fetchChemFormula(input) {
+    const chemId = input.value.trim();
+    const row = input.closest('.stmat-row');
+    const formulaInput = row.querySelector('.stmat-formula-input');
+    const statusSpan = row.querySelector('.stmat-status');
+
+    if (!chemId) {
+      formulaInput.value = '';
+      statusSpan.innerHTML = '';
+      return;
+    }
+
+    statusSpan.innerHTML = '<span class="loader border-t-cyan-500 h-4 w-4 border-2"></span>';
+
+    try {
+      const resp = await fetch(`/api/lc-ms/chem/${encodeURIComponent(chemId)}`);
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        formulaInput.value = '';
+        statusSpan.innerHTML = '❌';
+        statusSpan.title = data.error || 'Not found';
+      } else {
+        formulaInput.value = data.formula;
+        statusSpan.innerHTML = '✅';
+        statusSpan.title = 'Found in DB';
+      }
+    } catch (err) {
+      formulaInput.value = '';
+      statusSpan.innerHTML = '⚠️';
+      statusSpan.title = 'Network error';
+    }
+  }
+
+  // --- PHASE 2: DYNAMIC PRODUCTS ---
+  function addProductRow() {
+    const container = document.getElementById('dynamic-products-container');
+    const rowId = 'prod-' + Date.now() + Math.floor(Math.random() * 1000);
+    const row = document.createElement('div');
+    row.className = 'flex gap-4 items-start prod-row bg-black/20 p-3 rounded-lg border border-white/5 relative';
+
+    row.innerHTML = `
+      <div class="w-1/3">
+        <label class="lcms-label text-xs">Input Method</label>
+        <select class="lcms-input text-sm py-2 prod-method-select" onchange="toggleProductMethod('${rowId}')">
+          <option value="formula">Manual Formula</option>
+          <option value="smiles">SMILES String</option>
+          <option value="upload">Upload Structure File</option>
+        </select>
+      </div>
+      <div class="flex-1 relative" id="container-${rowId}">
+        
+        <!-- Manual Formula Mode -->
+        <div id="mode-formula-${rowId}" class="prod-mode-pane block">
+          <label class="lcms-label text-xs">Chemical Formula</label>
+          <input type="text" class="lcms-input final-formula-output" placeholder="e.g. C10H8N2O">
+        </div>
+        
+        <!-- SMILES Mode -->
+        <div id="mode-smiles-${rowId}" class="prod-mode-pane hidden space-y-2">
+          <label class="lcms-label text-xs">SMILES String</label>
+          <input type="text" class="lcms-input sm-input" placeholder="e.g. c1ccccc1" onblur="calculateFormulaFromSMILES(this)">
+          <div class="flex items-center gap-2 mt-2">
+             <span class="text-xs text-slate-400 inline-block w-24">Calculated:</span>
+             <input type="text" class="lcms-input border-dashed bg-slate-800/50 final-formula-output h-8" placeholder="Formula..." readonly>
+             <span class="sm-status text-xs"></span>
+          </div>
+        </div>
+        
+        <!-- Upload Mode -->
+        <div id="mode-upload-${rowId}" class="prod-mode-pane hidden space-y-2">
+          <label class="lcms-label text-xs">Structure File (.mol, .sdf)</label>
+          <div class="relative group">
+             <input type="file" accept=".mol,.sdf,.cdx" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="uploadStructureFile(this, '${rowId}')">
+             <div class="w-full bg-slate-800 group-hover:bg-slate-700 text-cyan-400 border border-cyan-500/30 py-2 rounded flex items-center justify-center gap-2 transition-colors">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                 <span class="file-name-display truncate max-w-[200px]">Select File</span>
+             </div>
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+             <span class="text-xs text-slate-400 inline-block w-24">Calculated:</span>
+             <input type="text" class="lcms-input border-dashed bg-slate-800/50 final-formula-output h-8" placeholder="Formula..." readonly>
+             <span class="sm-status text-xs"></span>
+          </div>
+        </div>
+
+      </div>
+      
+      <button type="button" class="mt-6 text-slate-500 hover:text-red-400 p-2 transition-colors" onclick="removeProductRow(this)" title="Remove Product">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    `;
+    container.appendChild(row);
+  }
+
+  function removeProductRow(btn) {
+    btn.closest('.prod-row').remove();
+  }
+
+  function toggleProductMethod(rowId) {
+    const container = document.getElementById(`container-${rowId}`);
+    const select = container.closest('.prod-row').querySelector('.prod-method-select');
+    const method = select.value;
+
+    container.querySelectorAll('.prod-mode-pane').forEach(el => el.classList.add('hidden'));
+    container.querySelector(`#mode-${method}-${rowId}`).classList.remove('hidden');
+
+    // Clear final outputs when switching tabs
+    container.querySelectorAll('.final-formula-output').forEach(el => el.value = '');
+    container.querySelectorAll('.sm-status').forEach(el => el.innerHTML = '');
+    container.querySelectorAll('.sm-input').forEach(el => el.value = '');
+  }
+
+  async function calculateFormulaFromSMILES(inputEl) {
+    const container = inputEl.closest('.prod-mode-pane');
+    const formulaOutput = container.querySelector('.final-formula-output');
+    const statusSpan = container.querySelector('.sm-status');
+    const smiles = inputEl.value.trim();
+
+    if (!smiles) {
+      formulaOutput.value = '';
+      statusSpan.innerHTML = '';
+      return;
+    }
+
+    statusSpan.innerHTML = '<span class="loader border-t-cyan-500 h-4 w-4 border-2"></span>';
+
+    try {
+      const resp = await fetch('/api/lc-ms/calculate-formula', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ smiles })
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        formulaOutput.value = '';
+        statusSpan.innerHTML = '❌';
+        statusSpan.title = data.error || 'Parse fail';
+      } else {
+        formulaOutput.value = data.formula;
+        statusSpan.innerHTML = '✅';
+        statusSpan.title = 'RDKit Parsed';
+      }
+    } catch (e) {
+      formulaOutput.value = '';
+      statusSpan.innerHTML = '⚠️';
+      statusSpan.title = 'Network error';
+    }
+  }
+
+  async function uploadStructureFile(inputEl, rowId) {
+    const file = inputEl.files[0];
+    if (!file) return;
+
+    const container = document.getElementById(`mode-upload-${rowId}`);
+    const formulaOutput = container.querySelector('.final-formula-output');
+    const statusSpan = container.querySelector('.sm-status');
+    const fileNameDisplay = container.querySelector('.file-name-display');
+
+    fileNameDisplay.textContent = file.name;
+    statusSpan.innerHTML = '<span class="loader border-t-cyan-500 h-4 w-4 border-2"></span>';
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const resp = await fetch('/api/lc-ms/upload-structure', { method: 'POST', body: formData });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        formulaOutput.value = '';
+        statusSpan.innerHTML = '❌';
+        statusSpan.title = data.error || 'Parse fail';
+      } else {
+        formulaOutput.value = data.formula;
+        statusSpan.innerHTML = '✅';
+        statusSpan.title = 'RDKit Parsed';
+      }
+    } catch (e) {
+      formulaOutput.value = '';
+      statusSpan.innerHTML = '⚠️';
+      statusSpan.title = 'Network error';
+    } finally {
+      inputEl.value = ''; // reset to allow reupload
+    }
+  }
+
+  async function uploadReactionFile(inputEl) {
+    const file = inputEl.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('reaction-upload-status');
+    statusEl.innerHTML = '<span class="text-cyan-400 flex items-center justify-center gap-2"><span class="loader border-t-cyan-500 h-4 w-4 border-2"></span> Parsing Reaction File...</span>';
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const resp = await fetch('/api/lc-ms/upload-reaction', { method: 'POST', body: formData });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        statusEl.innerHTML = `<span class="text-red-400">❌ Error: ${data.error}</span>`;
+      } else {
+        // Clear existing starting materials
+        document.getElementById('dynamic-stmats-container').innerHTML = '';
+        data.reactants.forEach(r => {
+          addStmatRow();
+          const rows = document.querySelectorAll('.stmat-row');
+          const latestRow = rows[rows.length - 1];
+          latestRow.querySelector('.stmat-id-input').value = r.id;
+          latestRow.querySelector('.stmat-formula-input').value = r.formula;
+
+          if (r.id) {
+            latestRow.querySelector('.stmat-status').innerHTML = '✅';
+            latestRow.querySelector('.stmat-status').title = "Found in DB by InChIKey";
+          } else {
+            latestRow.querySelector('.stmat-status').innerHTML = '⚠️';
+            latestRow.querySelector('.stmat-status').title = "Unregistered chemical";
+            latestRow.querySelector('.stmat-id-input').classList.add('border-red-500', 'bg-red-500/10', 'text-red-200');
+            latestRow.querySelector('.stmat-id-input').placeholder = "Missing from DB!";
+          }
+        });
+
+        // Clear existing products
+        document.getElementById('dynamic-products-container').innerHTML = '';
+        data.products.forEach(p => {
+          addProductRow();
+          const rows = document.querySelectorAll('.prod-row');
+          const latestRow = rows[rows.length - 1];
+          latestRow.querySelector('.prod-method-select').value = "formula";
+
+          const rowId = latestRow.querySelector('.prod-method-select').closest('.prod-row').id.replace('container-', '');
+          const container = latestRow.querySelector('.flex-1.relative');
+
+          // Hide all panes for this row
+          container.querySelectorAll('.prod-mode-pane').forEach(el => el.classList.add('hidden'));
+
+          // Show the manual formula pane for this specific row explicitly
+          const formulaPaneId = Array.from(container.querySelectorAll('.prod-mode-pane')).find(el => el.id.startsWith('mode-formula-')).id;
+          container.querySelector(`#${formulaPaneId}`).classList.remove('hidden');
+
+          // Set the value into the final output box uniquely attached to the formula mode
+          container.querySelector(`#${formulaPaneId} .final-formula-output`).value = p.formula;
+        });
+
+        statusEl.innerHTML = `<span class="text-emerald-400">✅ Form successfully auto-populated from ${file.name}!</span>`;
+        setTimeout(() => { statusEl.innerHTML = ''; }, 6000);
+      }
+    } catch (e) {
+      statusEl.innerHTML = `<span class="text-red-400">⚠️ Network Error</span>`;
+    } finally {
+      inputEl.value = ''; // reset to allow continuous uploads
+    }
+  }
+
+  async function submitNewELN(e) {
+    e.preventDefault();
+
+    // Extract dynamic starting materials
+    const stmatRows = document.querySelectorAll('.stmat-formula-input');
+    const stmat1 = stmatRows.length > 0 ? stmatRows[0].value.trim() : "";
+    const stmat2 = stmatRows.length > 1 ? stmatRows[1].value.trim() : "";
+
+    // Extract dynamic products.
+    // Each row has 3 '.final-formula-output', but only one is populated depending on selected method.
+    // Because we clear the other hidden inputs on switch, we can just aggregate all outputs that have value.
+    const allProdOutputs = document.querySelectorAll('.final-formula-output');
+    const validProds = Array.from(allProdOutputs)
+      .map(el => el.value.trim())
+      .filter(val => val.length > 0);
+
+    const payload = {
+      eln_id: document.getElementById('ne_eln_id').value,
+      chemist: document.getElementById('ne_chemist').value,
+      stmat_1_chemform: stmat1,
+      stmat_2_chemform: stmat2,
+      product_1_chemform: validProds.length > 0 ? validProds[0] : "",
+      product_2_chemform: validProds.length > 1 ? validProds[1] : "",
+      product_3_chemform: validProds.length > 2 ? validProds[2] : "",
+      product_4_chemform: validProds.length > 3 ? validProds[3] : ""
+    };
+    const r = await fetch('/api/lc-ms/elns', {
+      method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' }
+    });
+    const res = await r.json();
+    if (res.error) showAlert(res.error, 'error');
+    else {
+      showAlert(`ELN ${res.eln_id} successfully registered!`, 'success');
+      e.target.reset();
+      fetchElns();
+    }
+  }
+
+  // --- IPC GENERATOR ---
+  function addIpcRow() {
+    const tb = document.getElementById('ipc-gen-tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td class="p-2"><input type="text" class="lcms-input ipc-row-eln" placeholder="e.g. ELN045..." required></td>
+        <td class="p-2"><input type="number" class="lcms-input ipc-row-no" placeholder="e.g. 1" required></td>
+        <td class="p-2"><input type="number" class="lcms-input ipc-row-dur" placeholder="e.g. 1" required></td>
+        <td class="p-2 text-center"><button type="button" class="text-red-400 hover:text-red-300 text-lg" onclick="this.closest('tr').remove()">×</button></td>
+     `;
+    tb.appendChild(tr);
+  }
+
+  async function handleFileGenerationResponse(response, type) {
+    let data;
+    try {
+      data = await response.json();
+    } catch (e) {
+      showAlert('Failed to read server response', 'error');
+      return;
+    }
+    if (!response.ok || data.error) {
+      showAlert(data.error || 'Server error', 'error');
+    } else {
+      showAlert(data.message || 'Generated successfully', 'success');
+
+      if (data.content && data.filename) {
+        // Trigger local file download
+        const blob = new Blob([data.content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      // Refresh the corresponding measurements table
+      if (type === 'ipc') fetchMeasIpc();
+      if (type === 'purif') fetchMeasPurif();
+    }
+  }
+
+  async function submitIpcGen() {
+    const tb = document.getElementById('ipc-gen-tbody');
+    const rows = [];
+    tb.querySelectorAll('tr').forEach(tr => {
+      const eln = tr.querySelector('.ipc-row-eln').value;
+      const no = tr.querySelector('.ipc-row-no').value;
+      const dur = tr.querySelector('.ipc-row-dur').value;
+      if (eln && no && dur) {
+        rows.push({ eln_id: eln, ipc_no: no, duration_h: dur });
+      }
+    });
+    if (rows.length === 0) return showAlert('No valid rows to submit', 'error');
+
+    const r = await fetch('/api/lc-ms/generate/ipc', {
+      method: 'POST', body: JSON.stringify({ rows }), headers: { 'Content-Type': 'application/json' }
+    });
+    await handleFileGenerationResponse(r, 'ipc');
+  }
+
+  // --- PURIF GENERATOR ---
+  async function submitPurifGen(e) {
+    e.preventDefault();
+    const payload = {
+      eln_id: document.getElementById('pg_eln').value,
+      purif_no: document.getElementById('pg_no').value,
+      purif_method: document.getElementById('pg_method').value,
+      fractions: document.getElementById('pg_fracs').value.split(/[,;\s]+/).filter(x => x)
+    };
+    const r = await fetch('/api/lc-ms/generate/purif', {
+      method: 'POST', body: JSON.stringify({ payload }), headers: { 'Content-Type': 'application/json' }
+    });
+    await handleFileGenerationResponse(r, 'purif');
+  }
+
+  // --- PRODUCTS GENERATOR ---
+  async function submitProdGen(e) {
+    e.preventDefault();
+    const payload = {
+      eln_id: document.getElementById('prodg_eln').value,
+      product_numbers: document.getElementById('prodg_nums').value.split(/[,;\s]+/).filter(x => x)
+    };
+    const r = await fetch('/api/lc-ms/generate/products', {
+      method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' }
+    });
+    await handleFileGenerationResponse(r, 'products');
+  }
+
+  // --- MEASUREMENTS FETCH & INLINE EDITING ---
+  function bindMeasEdits(tb, endpoint, fields) {
+    tb.querySelectorAll('.edit-btn').forEach(btn => btn.onclick = function () {
+      const tr = this.closest('tr');
+      tr.querySelectorAll('.editable-cell').forEach(td => { td.querySelector('span').classList.add('hidden'); td.querySelector('input').classList.remove('hidden'); });
+      tr.querySelector('.edit-btn').classList.add('hidden');
+      tr.querySelector('.save-btn').classList.remove('hidden');
+      tr.querySelector('.cancel-btn').classList.remove('hidden');
+    });
+    tb.querySelectorAll('.cancel-btn').forEach(btn => btn.onclick = function () {
+      const tr = this.closest('tr');
+      tr.querySelectorAll('.editable-cell').forEach(td => { td.querySelector('span').classList.remove('hidden'); td.querySelector('input').classList.add('hidden'); td.querySelector('input').value = td.querySelector('span').textContent; });
+      tr.querySelector('.edit-btn').classList.remove('hidden');
+      tr.querySelector('.save-btn').classList.add('hidden');
+      tr.querySelector('.cancel-btn').classList.add('hidden');
+    });
+    tb.querySelectorAll('.save-btn').forEach(btn => btn.onclick = async function () {
+      const tr = this.closest('tr');
+      const id = tr.getAttribute('data-id');
+      let payload = {};
+      tr.querySelectorAll('.editable-cell').forEach(td => {
+        const key = td.getAttribute('data-f');
+        const val = td.querySelector('input').value;
+        payload[key] = val;
+      });
+      try {
+        const r = await fetch(`/api/lc-ms/${endpoint}/${id}`, {
+          method: 'PATCH', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' }
+        });
+        const res = await r.json();
+        if (res.ok) {
+          tr.querySelectorAll('.editable-cell').forEach(td => {
+            const v = td.querySelector('input').value; td.querySelector('span').textContent = v;
+            td.querySelector('span').classList.remove('hidden'); td.querySelector('input').classList.add('hidden');
+          });
+          tr.querySelector('.edit-btn').classList.remove('hidden');
+          tr.querySelector('.save-btn').classList.add('hidden');
+          tr.querySelector('.cancel-btn').classList.add('hidden');
+        } else { alert(res.error); }
+      } catch (e) { alert(e); }
+    });
+  }
+
+  async function fetchMeasIpc() {
+    const q = document.getElementById('search-meas-ipc').value;
+    try {
+      const r = await fetch(`/api/lc-ms/ipc-measurements?q=${encodeURIComponent(q)}&limit=100`);
+      const res = await r.json();
+      const tb = document.getElementById('meas-ipc-tbody');
+      tb.innerHTML = res.items.map(e => `
+         <tr class="border-b border-white/5 hover:bg-white/5 group" data-id="${e.id}">
+            <td class="py-2 pr-4 text-slate-500">${e.id}</td>
+            <td class="py-2 pr-4 font-mono text-white">${e.eln_id}</td>
+            <td class="py-2 pr-4 text-sky-400 font-medium">${e.ipc_no}</td>
+            <td class="py-2 pr-4">${e.duration_h}</td>
+            <td class="py-2 pr-4">${e.chemist_username}</td>
+            <td class="py-2 pr-4 editable-cell" data-f="lc_ms_method_min"><span>${e.lc_ms_method_min || ''}</span><input type="text" class="hidden" value="${e.lc_ms_method_min || ''}"></td>
+            <td class="py-2 pr-4 editable-cell" data-f="lc_ms_instrument"><span>${e.lc_ms_instrument || ''}</span><input type="text" class="hidden" value="${e.lc_ms_instrument || ''}"></td>
+            <td class="py-2 pr-4 editable-cell" data-f="lc_ms_file_name"><span>${e.lc_ms_file_name || ''}</span><input type="text" class="hidden" value="${e.lc_ms_file_name || ''}"></td>
+            <td class="py-2 pr-4 editable-cell" data-f="ipc_result"><span class="${e.ipc_result ? 'bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded' : ''}">${e.ipc_result || ''}</span><input type="text" class="hidden" value="${e.ipc_result || ''}"></td>
+            <td class="py-2 text-right sticky right-0 bg-[#0B1120] group-hover:bg-[#111827]">
+               <button class="btn ghost small edit-btn">Edit</button>
+               <button class="btn small text-sky-400 border border-sky-400 hidden save-btn">Save</button>
+               <button class="btn ghost small hidden cancel-btn">Cancel</button>
+            </td>
+         </tr>
+       `).join('');
+      bindMeasEdits(tb, 'ipc-measurements');
+    } catch (e) { console.error(e); }
+  }
+
+  async function fetchMeasPurif() {
+    const q = document.getElementById('search-meas-purif').value;
+    try {
+      const r = await fetch(`/api/lc-ms/purif-measurements?q=${encodeURIComponent(q)}&limit=100`);
+      const res = await r.json();
+      const tb = document.getElementById('meas-purif-tbody');
+      tb.innerHTML = res.items.map(e => `
+         <tr class="border-b border-white/5 hover:bg-white/5 group" data-id="${e.id}">
+            <td class="py-2 pr-4 text-slate-500">${e.id}</td>
+            <td class="py-2 pr-4 font-mono text-white">${e.eln_id}</td>
+            <td class="py-2 pr-4 text-emerald-400 font-medium">${e.purif_no}</td>
+            <td class="py-2 pr-4 font-bold">${e.fraction_label || ''}</td>
+            <td class="py-2 pr-4">${e.chemist_username}</td>
+            <td class="py-2 pr-4">${e.purif_method || ''}</td>
+            <td class="py-2 pr-4 editable-cell" data-f="analysis_instrument"><span>${e.analysis_instrument || ''}</span><input type="text" class="hidden" value="${e.analysis_instrument || ''}"></td>
+            <td class="py-2 pr-4 editable-cell" data-f="analysis_file_name"><span>${e.analysis_file_name || ''}</span><input type="text" class="hidden" value="${e.analysis_file_name || ''}"></td>
+            <td class="py-2 pr-4 editable-cell" data-f="purif_result"><span class="${e.purif_result ? 'bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded' : ''}">${e.purif_result || ''}</span><input type="text" class="hidden" value="${e.purif_result || ''}"></td>
+            <td class="py-2 text-right sticky right-0 bg-[#0B1120] group-hover:bg-[#111827]">
+               <button class="btn ghost small edit-btn">Edit</button>
+               <button class="btn small text-sky-400 border border-sky-400 hidden save-btn">Save</button>
+               <button class="btn ghost small hidden cancel-btn">Cancel</button>
+            </td>
+         </tr>
+       `).join('');
+      bindMeasEdits(tb, 'purif-measurements');
+    } catch (e) { console.error(e); }
+  }
+</script>
+
+
+
+{% endblock %}

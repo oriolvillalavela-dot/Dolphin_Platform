@@ -1,0 +1,31 @@
+
+{% extends "base.html" %}
+{% block content %}
+<div class="section-header">
+  <h1>Screening Plates SURF</h1>
+</div>
+<div class="table-wrap">
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>eln_id</th><th>plate_no</th><th>well</th><th>mixing</th><th>atmosphere</th><th>λ nm</th>
+        <th>scale</th><th>conc</th>
+        <th>SM1</th><th>eq</th><th>SM2</th><th>eq</th>
+        <th>R1</th><th>eq</th><th>R2</th><th>eq</th><th>R3</th><th>eq</th><th>R4</th><th>eq</th><th>R5</th><th>eq</th>
+        <th>S1</th><th>frac</th><th>S2</th><th>frac</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in surf %}
+      <tr>
+        <td>{{ r.eln_id }}</td><td>{{ r.plate_no }}</td><td>{{ r.well }}</td><td>{{ r.mixing }}</td><td>{{ r.atmosphere }}</td><td>{{ r.wavelength_nm }}</td>
+        <td>{{ r.scale_mol }}</td><td>{{ r.concentration_mol_l }}</td>
+        <td>{{ r.startingmat_1_id }}</td><td>{{ r.startingmat_1_eq }}</td><td>{{ r.startingmat_2_id }}</td><td>{{ r.startingmat_2_eq }}</td>
+        <td>{{ r.reagent_1_id }}</td><td>{{ r.reagent_1_eq }}</td><td>{{ r.reagent_2_id }}</td><td>{{ r.reagent_2_eq }}</td><td>{{ r.reagent_3_id }}</td><td>{{ r.reagent_3_eq }}</td><td>{{ r.reagent_4_id }}</td><td>{{ r.reagent_4_eq }}</td><td>{{ r.reagent_5_id }}</td><td>{{ r.reagent_5_eq }}</td>
+        <td>{{ r.solvent_1_id }}</td><td>{{ r.solvent_1_fraction }}</td><td>{{ r.solvent_2_id }}</td><td>{{ r.solvent_2_fraction }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

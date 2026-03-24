@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Search results for “{{ query }}”</h1>
+
+{% if error %}
+  <div class="preview-side" style="margin:12px 0">
+    <div class="preview-meta">We had trouble searching. Details: {{ error }}</div>
+  </div>
+{% endif %}
+
+{% set total = (chems|length) + (bottles|length) + (batches|length) %}
+{% if total == 0 %}
+  <div style="text-align:center; padding:40px 0;">
+    <img src="{{ url_for('static', filename='icons/search.png') }}" alt="" style="width:88px; height:88px; opacity:.8">
+    <h2 style="margin:10px 0 6px">No results found</h2>
+    <p class="muted">We can't find any item matching “{{ query }}”.</p>
+    
+    <div style="margin-top:20px; display:flex; flex-direction:column; align-items:center; gap:10px">
+      <button class="btn primary" onclick="ChemUI.createFromSearch('{{ query|replace('\'', '\\\'') }}')">
+        Create this chemical
+      </button>
+      <a class="btn ghost" href="{{ url_for('home') }}">Back to Home</a>
+    </div>
+  </div>
+{% else %}
+
+  {% if chems %}
+  <div class="section-header"><h2>Chemicals ({{ chems|length }})</h2></div>
+  <div class="table-wrap">
+    <table class="grid">
+      <thead><tr><th>Chem_ID</th><th>Name</th><th>CAS</th><th>SMILES</th></tr></thead>
+      <tbody>
+        {% for c in chems %}
+        <tr>
+          <td><a href="{{ url_for('chemicals') }}?q={{ c.chem_id }}">{{ c.chem_id }}</a></td>
+          <td>{{ c.common_name_abb or '' }}</td>
+          <td>{{ c.cas or '' }}</td>
+          <td class="mono">{{ c.smiles or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if bottles %}
+  <div class="section-header"><h2>Bottles ({{ bottles|length }})</h2></div>
+  <div class="table-wrap">
+    <table class="grid">
+      <thead><tr><th>Bottle_ID</th><th>Chem_ID</th><th>Supplier</th><th>Lot</th></tr></thead>
+      <tbody>
+        {% for b in bottles %}
+        <tr>
+          <td><a href="{{ url_for('bottles') }}?q={{ b.bottle_id }}">{{ b.bottle_id }}</a></td>
+          <td><a href="{{ url_for('chemicals') }}?q={{ b.chem_id }}">{{ b.chem_id }}</a></td>
+          <td>{{ b.supplier_id }}</td>
+          <td>{{ b.lot_no }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if batches %}
+  <div class="section-header"><h2>Batches ({{ batches|length }})</h2></div>
+  <div class="table-wrap">
+    <table class="grid">
+      <thead><tr><th>Batch_ID</th><th>Chem_ID</th><th>Barcode</th><th>Location</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for bt in batches %}
+        <tr>
+          <td><a href="{{ url_for('batches') }}?q={{ bt.batch_id }}">{{ bt.batch_id }}</a></td>
+          <td><a href="{{ url_for('chemicals') }}?q={{ bt.chem_id }}">{{ bt.chem_id }}</a></td>
+          <td class="mono">{{ bt.barcode or '' }}</td>
+          <td>{{ bt.location }}{% if bt.sublocation %} / {{ bt.sublocation }}{% endif %}</td>
+          <td>{{ bt.status }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+{% endif %}
+{% endblock %}
+

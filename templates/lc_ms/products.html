@@ -1,0 +1,30 @@
+{% extends "lc_ms/base_lcms.html" %}
+{% block content %}
+<div class="section-header">
+  <h1>Product Generator</h1>
+</div>
+
+<div class="card">
+  <form action="{{ url_for('lc_ms_api.generate_products') }}" method="post" class="form">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <label>
+        <span>ELN ID *</span>
+        <input name="eln_id" placeholder="e.g. ELN040616-358" required>
+      </label>
+      <label class="row-span-2" style="grid-column: span 2;">
+        <span>Product numbers * (comma/space separated)</span>
+        <textarea name="products" rows="3" placeholder="e.g. 1, 2, 4" required></textarea>
+      </label>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <button type="submit" class="btn">Generate Product File</button>
+    </div>
+  </form>
+  <div style="margin-top: 10px; font-size: 12px; color: var(--muted);">Output filename:
+    <code>{USER_ID}_PRODUCTS.txt</code>
+  </div>
+</div>
+
+<script src="{{ url_for('lc_ms.static', filename='script.js') }}"></script>
+{% endblock %}

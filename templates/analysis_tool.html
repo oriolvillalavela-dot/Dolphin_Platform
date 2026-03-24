@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex-1 flex flex-col w-full max-w-[1400px] mx-auto min-h-full p-6 animate-[fadeIn_0.5s_ease-out]">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-4">
+            <div class="p-3 bg-amber-500/10 rounded-xl text-amber-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold text-white tracking-tight">SDFile Parser</h1>
+                <p class="text-slate-400">Analyze SDFiles to categorize substances and check inventory.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <!-- Card Macro -->
+        {% macro stat_card(id, title, color_class) %}
+        <div
+            class="bg-[#1e293b] border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center shadow-lg">
+            <div class="text-slate-400 text-sm font-medium uppercase tracking-wider mb-1">{{ title }}</div>
+            <div id="{{ id }}" class="text-3xl font-bold {{ color_class }}">0</div>
+        </div>
+        {% endmacro %}
+
+        {{ stat_card('stat_internal', 'Total Internal', 'text-teal-400') }}
+        {{ stat_card('stat_external', 'Total External', 'text-blue-400') }}
+        {{ stat_card('stat_matches', 'Matches Found', 'text-green-400') }}
+        {{ stat_card('stat_orders', 'Needs Ordering', 'text-amber-400') }}
+    </div>
+
+    <!-- Upload Section -->
+    <div id="uploadZone"
+        class="relative group border-2 border-dashed border-slate-600 rounded-2xl bg-[#0f172a] hover:bg-[#1e293b] transition-all duration-300 p-12 text-center cursor-pointer mb-8">
+        <input type="file" id="sdfInput" accept=".sdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            onchange="AnalysisTool.handleUpload(this.files[0])">
+
+        <div class="flex flex-col items-center pointer-events-none">
+            <div
+                class="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center text-slate-300 mb-4 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-white mb-2">Upload SDFile for Analysis</h3>
+            <p class="text-slate-400">Drag and drop or click to select</p>
+        </div>
+    </div>
+
+    <!-- Progress Bar (Hidden by default) -->
+    <div id="progressArea" class="hidden mb-8">
+        <div class="flex justify-between text-sm text-slate-300 mb-2">
+            <span id="progressStatus">Analyzing...</span>
+            <span id="progressPercent">0%</span>
+        </div>
+        <div class="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
+            <div id="progressBar" class="bg-amber-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%">
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Section (Hidden until ready) -->
+    <div id="resultsSection" class="hidden flex-1 flex flex-col">
+
+        <!-- Tabs -->
+        <div class="flex border-b border-slate-700 mb-6">
+            <button
+                class="px-6 py-3 text-sm font-medium text-white border-b-2 border-amber-500 focus:outline-none transition-colors"
+                onclick="AnalysisTool.switchTab('internal', this)" id="tabInternal">
+                Internal Substances (Roche Basel)
+            </button>
+            <button
+                class="px-6 py-3 text-sm font-medium text-slate-400 hover:text-white border-b-2 border-transparent focus:outline-none transition-colors"
+                onclick="AnalysisTool.switchTab('external', this)" id="tabExternal">
+                External Substances
+            </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="flex-1 overflow-auto">
+
+            <!-- Internal Tab -->
+            <div id="viewInternal" class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                <!-- Mosaic -->
+                <div class="flex flex-col bg-[#1e293b] border border-white/5 rounded-xl overflow-hidden flex-1">
+                    <div
+                        class="px-4 py-3 bg-slate-800/50 border-b border-white/5 font-semibold text-teal-400 flex justify-between">
+                        <span>Mosaic Compounds (RO...)</span>
+                        <span id="countMosaic" class="text-xs bg-slate-700 px-2 py-0.5 rounded text-white">0</span>
+                    </div>
+                    <div class="flex-1 overflow-auto p-0">
+                        <table class="w-full text-left border-collapse">
+                            <thead
+                                class="bg-slate-800/80 text-xs uppercase text-slate-400 sticky top-0 backdrop-blur-md">
+                                <tr>
+                                    <th class="p-3">Supplier ID</th>
+                                    <th class="p-3">Status</th>
+                                    <th class="p-3">Inv. Check</th>
+                                    <th class="p-3">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableMosaic" class="text-sm divide-y divide-slate-700/50 text-slate-300"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- RMM -->
+                <div class="flex flex-col bg-[#1e293b] border border-white/5 rounded-xl overflow-hidden flex-1">
+                    <div
+                        class="px-4 py-3 bg-slate-800/50 border-b border-white/5 font-semibold text-blue-400 flex justify-between">
+                        <span>RMM Compounds</span>
+                        <span id="countRMM" class="text-xs bg-slate-700 px-2 py-0.5 rounded text-white">0</span>
+                    </div>
+                    <div class="flex-1 overflow-auto p-0">
+                        <table class="w-full text-left border-collapse">
+                            <thead
+                                class="bg-slate-800/80 text-xs uppercase text-slate-400 sticky top-0 backdrop-blur-md">
+                                <tr>
+                                    <th class="p-3">Supplier ID</th>
+                                    <th class="p-3">Status</th>
+                                    <th class="p-3">Inv. Check</th>
+                                    <th class="p-3">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableRMM" class="text-sm divide-y divide-slate-700/50 text-slate-300"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- External Tab (Hidden) -->
+            <div id="viewExternal"
+                class="hidden h-full flex flex-col bg-[#1e293b] border border-white/5 rounded-xl overflow-hidden">
+                <div
+                    class="px-4 py-3 bg-slate-800/50 border-b border-white/5 font-semibold text-amber-400 flex justify-between">
+                    <span>External Substances</span>
+                    <span id="countExternal" class="text-xs bg-slate-700 px-2 py-0.5 rounded text-white">0</span>
+                </div>
+                <div class="flex-1 overflow-auto p-0">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-800/80 text-xs uppercase text-slate-400 sticky top-0 backdrop-blur-md">
+                            <tr>
+                                <th class="p-3">Supplier ID</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Inv. Check</th>
+                                <th class="p-3">IUPAC / SMILES / InChI</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableExternal" class="text-sm divide-y divide-slate-700/50 text-slate-300"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+<script src="{{ url_for('static', filename='analysis_tool.js') }}"></script>
+{% endblock %}

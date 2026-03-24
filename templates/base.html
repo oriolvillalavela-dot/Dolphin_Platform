@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dolphin Platform</title>
+  <link rel="icon" href="{{ url_for('static', filename='dolphin_logo.png') }}" type="image/png">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      corePlugins: {
+        preflight: false,
+      },
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              850: '#15202e',
+              900: '#0f172a',
+              950: '#020617',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  {% block head_extra %}{% endblock %}
+  <style>
+    .logo-filter {
+      filter: brightness(0) invert(1);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white antialiased font-sans min-h-screen selection:bg-cyan-500/30 overflow-x-hidden">
+
+  <!-- Global background gradient -->
+  <div class="fixed inset-0 z-0 pointer-events-none"
+    style="background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(15,23,42,1), rgba(2,6,23,1));"></div>
+
+  <nav class="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-slate-950 transition-all duration-300">
+    <div class="w-full mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="{{ url_for('home') }}" class="flex items-center gap-3 group">
+        <img src="{{ url_for('static', filename='dolphin_logo.png') }}" alt="Roche Dolphin logo"
+          class="h-10 w-auto logo-filter opacity-90 group-hover:opacity-100 transition-all duration-300">
+        <span class="font-bold text-lg tracking-tight text-white group-hover:text-cyan-400 transition-colors">Dolphin
+          Platform</span>
+      </a>
+      <div class="hidden md:flex items-center gap-1">
+        {% block navbar_links %}
+        {% for href, label in [
+        (url_for('chemicals'), 'Chemicals DB'),
+        (url_for('bottles'), 'Bottles DB'),
+        (url_for('batches'), 'Batch DB'),
+        (url_for('plate_new'), 'Plate Designer'),
+        (url_for('surf_table'), 'SURF'),
+        (url_for('requests'), 'Libraries'),
+        (url_for('lc_ms.home'), 'LC-MS Measurements'),
+        (url_for('ppm.home'), 'Project Tracker'),
+        (url_for('screenings.dashboard'), 'Screenings')
+        ] %}
+        <a href="{{ href }}"
+          class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all duration-200">
+          {{ label }}
+        </a>
+        {% endfor %}
+        {% endblock %}
+      </div>
+    </div>
+  </nav>
+
+  <main class="relative z-10 pt-24 pb-12 px-4 w-full mx-auto min-h-screen flex flex-col">
+    {% block content %}{% endblock %}
+  </main>
+
+  <div id="modalHost"></div>
+  <div id="overlay" class="overlay hidden">
+    <div class="spinner"></div>
+  </div>
+  <script src="{{ url_for('static', filename='app.js') }}?v=5"></script>
+</body>
+
+</html>

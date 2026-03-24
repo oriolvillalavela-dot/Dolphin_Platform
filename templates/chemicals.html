@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    /* Map to app theme variables */
+    --fg-surface: var(--card);
+    --fg-surface-2: #0b1f33;
+    /* Darker background for inputs/hovers */
+    --fg-border: var(--border);
+    --fg-text: var(--fg);
+    --fg-muted: var(--muted);
+    --fg-accent: var(--accent);
+    --fg-accent-soft: rgba(0, 102, 204, 0.2);
+    --fg-shadow: 0 10px 30px rgba(0, 0, 0, .4);
+    --fg-radius: 12px;
+    --fg-radius-sm: 999px;
+    --fg-focus: 0 0 0 3px rgba(0, 102, 204, 0.4);
+  }
+
+  .fgFilter {
+    position: relative;
+    min-width: 260px;
+    max-width: 420px;
+    font-family: inherit;
+  }
+
+  .fgControl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 8px 10px;
+    border: 1px solid var(--fg-border);
+    border-radius: var(--fg-radius);
+    background: var(--fg-surface);
+    color: var(--fg-text);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .fgControl:focus-within,
+  .fgControl.active {
+    outline: none;
+    box-shadow: var(--fg-focus);
+    border-color: var(--fg-accent);
+  }
+
+  .fgChips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .fgPlaceholder {
+    color: var(--fg-muted);
+    font-size: 14px;
+  }
+
+  .fgChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--fg-radius-sm);
+    background: var(--fg-accent-soft);
+    color: var(--fg-text);
+    font-size: 13px;
+    border: 1px solid rgba(37, 99, 235, 0.18);
+    max-width: 160px;
+  }
+
+  .fgChip span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .fgChipRemove {
+    border: none;
+    background: transparent;
+    color: var(--fg-muted);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .fgChipRemove:hover {
+    color: var(--fg-text);
+  }
+
+  .fgIcons {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .fgIconBtn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--fg-muted);
+    padding: 4px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+  }
+
+  .fgIconBtn:hover {
+    background: var(--fg-surface-2);
+    color: var(--fg-text);
+  }
+
+  .fgDropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: var(--fg-surface);
+    border: 1px solid var(--fg-border);
+    border-radius: var(--fg-radius);
+    box-shadow: var(--fg-shadow);
+    overflow: hidden;
+    display: none;
+  }
+
+  .fgDropdown.show {
+    display: block;
+  }
+
+  .fgDropdownHeader {
+    padding: 10px;
+    border-bottom: 1px solid var(--fg-border);
+    background: var(--fg-surface);
+  }
+
+  .fgDropdownSearch {
+    width: 100%;
+    height: 36px;
+    padding: 8px 10px;
+    border: 1px solid var(--fg-border);
+    border-radius: 10px;
+    background: var(--fg-surface-2);
+    color: var(--fg-text);
+    font-family: inherit;
+  }
+
+  .fgDropdownSearch:focus {
+    outline: none;
+    border-color: var(--fg-accent);
+    box-shadow: var(--fg-focus);
+    background: var(--fg-surface);
+  }
+
+  .fgOptions {
+    max-height: 320px;
+    overflow: auto;
+    padding: 6px;
+  }
+
+  .fgGroupTitle {
+    padding: 10px 10px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .fgOption {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .fgOption:hover {
+    background: var(--fg-surface-2);
+  }
+
+  .fgOption[aria-selected="true"] {
+    background: var(--fg-accent-soft);
+    border: 1px solid rgba(37, 99, 235, 0.18);
+  }
+
+  .fgOption input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--fg-accent);
+  }
+
+  .fgFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-top: 1px solid var(--fg-border);
+    background: var(--fg-surface);
+  }
+
+  .fgToggle {
+    display: inline-flex;
+    border: 1px solid var(--fg-border);
+    border-radius: var(--fg-radius-sm);
+    overflow: hidden;
+    height: 32px;
+    background: var(--fg-surface);
+  }
+
+  .fgToggle button {
+    border: none;
+    background: transparent;
+    padding: 0 12px;
+    cursor: pointer;
+    color: var(--fg-muted);
+    font-size: 13px;
+    font-weight: 500;
+    height: 100%;
+  }
+
+  .fgToggle button.active {
+    background: var(--fg-accent-soft);
+    color: var(--fg-accent);
+    font-weight: 600;
+  }
+</style>
+
+<div class="section-header">
+  <h1>Chemicals DB</h1>
+  <div class="actions">
+    <button class="btn" data-action="open-new-chemical">+ New Chemical</button>
+    <button class="btn secondary" data-action="open-multi-entry">Multi-Entry</button>
+    <a href="{{ url_for('sd_exporter') }}" class="btn secondary">SD File Exporter</a>
+  </div>
+</div>
+
+<div class="section-header" style="justify-content: flex-start; gap: 10px; flex-wrap: wrap;">
+  <input id="chemSearch" class="search" placeholder="Search (chem_id, name, CAS, SMILES, InChI…)"
+    value="{{ search or '' }}"
+    onkeydown="if(event.key==='Enter'){ window.location='?q='+encodeURIComponent(this.value) + FGFilter.getQueryParams()}">
+
+  <!-- Advanced Functional Group Filter -->
+  <div class="fgFilter" id="fgFilterComponent">
+    <!-- Populated by JS -->
+  </div>
+
+  <button class="btn ghost"
+    onclick="window.location='?q='+encodeURIComponent(document.getElementById('chemSearch').value) + FGFilter.getQueryParams()">Search</button>
+</div>
+
+<div class="table-wrap">
+  <table class="grid">
+    <!-- Fixed column widths; tweak as needed -->
+    <colgroup>
+      <col style="width:10ch"> <!-- chem_id -->
+      <col style="width:18ch"> <!-- common_name_abb -->
+      <col style="width:14ch"> <!-- cas -->
+      <col style="width:12ch"> <!-- ro_srn -->
+      <col style="width:14ch"> <!-- chemform -->
+      <col style="width:10ch"> <!-- mw -->
+      <col style="width:12ch"> <!-- mim -->
+      <col style="width:10ch"> <!-- density -->
+      <col style="width:14ch"> <!-- aggregate_state -->
+      <col style="width:14ch"> <!-- stock_solution_c -->
+      <col style="width:26ch"> <!-- smiles -->
+      <col style="width:30ch"> <!-- inchi -->
+      <col style="width:28ch"> <!-- inchi_key -->
+      <col style="width:14ch"> <!-- actions (sticky) -->
+    </colgroup>
+
+    <thead>
+      <tr>
+        <th>chem_id</th>
+        <th>common_name_abb</th>
+        <th>cas</th>
+        <th>ro_srn</th>
+        <th>chemform</th>
+        <th>mw</th>
+        <th>mim</th>
+        <th>density</th>
+        <th>aggregate_state</th>
+        <th>stock_solution_c</th>
+        <th>smiles</th>
+        <th>inchi</th>
+        <th>inchi_key</th>
+        <th class="sticky-right"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in chemicals %}
+      <tr>
+        <td><a href="#" data-action="open-availability" data-chem-id="{{ c.chem_id }}">{{ c.chem_id }}</a></td>
+        <td>{{ c.common_name_abb }}</td>
+        <td>{{ c.cas or '' }}</td>
+        <td>{{ c.ro_srn or '' }}</td>
+        <td>{{ c.chemform or '' }}</td>
+        <td>{{ c.mw or '' }}</td>
+        <td>{{ c.mim or '' }}</td>
+        <td>{{ c.density or '' }}</td>
+        <td>{{ c.aggregate_state or '' }}</td>
+        <td>{{ c.stock_solution_c or '' }}</td>
+
+        <td class="mono">{{ c.smiles or '' }}</td>
+        <td class="mono">{{ c.inchi or '' }}</td>
+        <td class="mono">{{ c.inchi_key or '' }}</td>
+        <td class="sticky-right">
+          <div style="display:flex; flex-direction:column; gap:4px; align-items:stretch;">
+            <button class="btn small" data-action="chem-edit" data-chem-id="{{ c.chem_id }}">Edit</button>
+            <button class="btn small" data-action="open-preview" data-chem-id="{{ c.chem_id }}">Preview</button>
+            <button class="btn small" data-action="open-generate-bottle" data-chem-id="{{ c.chem_id }}">Generate
+              bottle</button>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      {% if search %}
+      <tr>
+        <td colspan="14" style="text-align:center; padding:40px 0;">
+          <img src="{{ url_for('static', filename='icons/search.png') }}" alt=""
+            style="width:64px; height:64px; opacity:.6; margin-bottom:12px">
+          <h3>No chemicals found for “{{ search }}”</h3>
+          <div style="margin-top:16px">
+            <button class="btn primary" onclick="ChemUI.createFromSearch('{{ search|replace('\'', '\\\'') }}')">
+              Create this chemical
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="14" style="text-align:center; padding:20px; color:var(--text-muted)">No chemicals in database.</td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

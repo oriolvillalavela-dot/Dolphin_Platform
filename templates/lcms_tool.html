@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="section-header">
+  <h1>LC-MS Analyser</h1>
+</div>
+<div style="width: 100%; height: calc(100vh - 150px);">
+  <iframe src="{{ streamlit_url }}" style="width: 100%; height: 100%; border: none;"></iframe>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+
+{% extends "base.html" %}
+{% block content %}
+<div class="section-header">
+  <h1>Batch DB</h1>
+  <div class="actions">
+    <input id="baSearch" class="search" placeholder="Search (batch_id, chem_id, location, status…)" value="{{ search or '' }}"
+           onkeydown="if(event.key==='Enter'){ window.location='?q='+encodeURIComponent(this.value)}">
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>batch_id</th><th>chem_id</th><th>type</th><th>concentration_moll</th><th>Barcode</th>
+        <th>location</th><th>sublocation</th><th>amount</th><th>Status</th><th>expiring_date</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in batches %}
+      <tr>
+        <td>{{ r.batch_id }}</td>
+        <td>{{ r.chem_id }}</td>
+        <td>{{ r.kind }}</td>
+        <td>{{ r.concentration_moll }}</td>
+        <td>{{ r.barcode }}</td>
+        <td>{{ r.location }}</td>
+        <td>{{ r.sublocation or '' }}</td>
+        <td>{{ r.amount }}</td>
+        <td>{{ r.status }}</td>
+        <td>{{ r.expiring_date or '' }}</td>
+        <td><button class="btn small" data-action="open-manage-batch" data-batch-id="{{ r.batch_id }}" data-location="{{ r.location }}" data-sublocation="{{ r.sublocation or '' }}" data-status="{{ r.status }}" data-kind="{{ r.kind }}" data-exp="{{ r.expiring_date or '' }}">Manage</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
