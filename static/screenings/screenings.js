@@ -1345,13 +1345,29 @@
       analyseModal.classList.add("hidden");
     }
 
+    function wellSortKey(sampleId) {
+      const m = /[_]([A-H])(\d{1,2})$/i.exec(String(sampleId || ""));
+      if (!m) return [999, 999];
+      return [m[1].toUpperCase().charCodeAt(0) - 65, parseInt(m[2], 10)];
+    }
+
     function renderPeaksTable(peaks, targets) {
       if (!validatePeaksWrap) return;
-      const list = Array.isArray(peaks) ? peaks : [];
-      if (!list.length) {
+      const raw = Array.isArray(peaks) ? peaks : [];
+      if (!raw.length) {
         validatePeaksWrap.innerHTML = `<div class="text-slate-400 text-sm">No peak data available. Re-run the analysis to populate this table.</div>`;
         return;
       }
+
+      // Sort by well (A1→D6) then peak_id ascending, keeping original index for editing
+      const indexed = raw.map((p, i) => ({ p, i }));
+      indexed.sort((a, b) => {
+        const [ar, ac] = wellSortKey(a.p.sample_id);
+        const [br, bc] = wellSortKey(b.p.sample_id);
+        if (ar !== br) return ar - br;
+        if (ac !== bc) return ac - bc;
+        return Number(a.p.peak_id || 0) - Number(b.p.peak_id || 0);
+      });
 
       // Collect available role options from targets + existing peak roles
       const roleSet = new Set([""]);
@@ -1359,7 +1375,7 @@
         const rl = cleanText(t.role_label);
         if (rl) roleSet.add(rl);
       });
-      list.forEach((p) => {
+      raw.forEach((p) => {
         const r = cleanText(p.role);
         if (r) roleSet.add(r);
       });
@@ -1369,13 +1385,16 @@
         return a.localeCompare(b);
       });
 
-      const headers = ["Sample", "Peak", "RT (min)", "Area", "Top m/z", "Top 5 m/z", "Adduct", "Role", "Source", "Conf."];
-      const rows = list.map((p, i) => {
+      const headers = ["Well", "Sample", "Peak", "RT (min)", "Area", "Top m/z", "Top 5 m/z", "Adduct", "Role", "Source", "Conf."];
+      const rows = indexed.map(({ p, i }) => {
+        const wellMatch = /[_]([A-H]\d{1,2})$/i.exec(String(p.sample_id || ""));
+        const well = wellMatch ? wellMatch[1].toUpperCase() : "";
         const curRole = cleanText(p.role);
         const selectOpts = roleOptions.map((r) =>
           `<option value="${r}" ${r === curRole ? "selected" : ""}>${r || "(none)"}</option>`
         ).join("");
         return `<tr data-peak-idx="${i}">
+          <td style="font-weight:600;">${well}</td>
           <td class="text-xs">${cleanText(p.sample_id)}</td>
           <td>${cleanText(p.peak_id)}</td>
           <td>${cleanText(p.rt_min)}</td>
@@ -1443,18 +1462,26 @@
     }
 
     function renderValidateTable(rows) {
-      const list = Array.isArray(rows) ? rows : [];
-      if (!list.length) {
+      const raw = Array.isArray(rows) ? rows : [];
+      if (!raw.length) {
         validateTableWrap.innerHTML = `<div class="text-slate-400 text-sm">No rows to validate.</div>`;
         return;
       }
+      // Sort by well (A1→D6): use sample_id or well field
+      const indexed = raw.map((r, i) => ({ r, i }));
+      indexed.sort((a, b) => {
+        const [ar, ac] = wellSortKey(a.r.sample_id || a.r.well || "");
+        const [br, bc] = wellSortKey(b.r.sample_id || b.r.well || "");
+        if (ar !== br) return ar - br;
+        return ac - bc;
+      });
       const html = `
         <table class="screenings-table">
           <thead>
             <tr><th>Sample</th><th>Well</th><th>Result</th><th>Result Type</th><th>Conversion %</th><th>Yield %</th></tr>
           </thead>
           <tbody>
-            ${list.map((r, i) => `
+            ${indexed.map(({ r, i }) => `
               <tr data-idx="${i}">
                 <td>${r.sample_id || ""}</td>
                 <td>${r.well || ""}</td>
@@ -1497,11 +1524,13 @@
       const rows = results.summary_rows || [];
       const peaks = results.peaks || [];
       const targets = data.targets || [];
-      renderPeaksTable(peaks, targets);
-      renderValidateTable(rows);
       const imgs = data.images || [];
       validateImages.innerHTML = imgs.map((img) => `<div><img alt="${img.name || "analysis"}" src="${img.url}"><div class="text-xs text-slate-400 mt-1">${img.name || ""}</div></div>`).join("");
+      renderPeaksTable(peaks, targets);
+      renderValidateTable(rows);
       validateModal.classList.remove("hidden");
+      const card = validateModal.querySelector(".screenings-modal-card");
+      if (card) card.scrollTop = 0;
     }
 
     function closeValidateModal() {
