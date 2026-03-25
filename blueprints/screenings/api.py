@@ -23,6 +23,8 @@ from .lcms_backend import (
     lcms_unavailable_reason,
     build_analysis_targets,
     run_lcms_screening_analysis,
+    conversion_pct as _lcms_conversion_pct,
+    yield_with_is as _lcms_yield_with_is,
 )
 from utils.chem_utils import generate_structure_svg
 
@@ -1892,6 +1894,164 @@ def download_analysis_images(eln_id: str):
             as_attachment=True,
             download_name=f"{eln_id}_lcms_images.zip",
         )
+    finally:
+        session.close()
+
+
+def _recalculate_summary_from_peaks(peaks_data: list, analysis_type_str: str, targets: list, yield_params: dict, dimensions: dict):
+    """Recompute summary_rows from a peaks list (with possibly edited roles)."""
+    import re as _re
+    rows_count = int((dimensions or {}).get("rows", 4) or 4)
+    cols_count = int((dimensions or {}).get("columns", 6) or 6)
+    plate_size = rows_count * cols_count
+    if plate_size == 96:
+        row_labels = list("ABCDEFGH")
+    elif plate_size == 48:
+        row_labels = list("ABCDEF")
+    else:
+        row_labels = list("ABCD")
+    col_count_lbl = plate_size // max(len(row_labels), 1)
+
+    raw_atype = _clean_text(analysis_type_str).lower()
+    if "yield" in raw_atype:
+        atype_norm = "yield_with_is"
+    elif "conversion" in raw_atype:
+        atype_norm = "conversion"
+    elif "pie" in raw_atype:
+        atype_norm = "pie_charts"
+    else:
+        atype_norm = "product_formation"
+
+    def _well_from_sid(sid):
+        m = _re.search(r"_([A-H]\d{1,2})$", _clean_text(sid), flags=_re.IGNORECASE)
+        return m.group(1).upper() if m else ""
+
+    if not peaks_data:
+        return []
+
+    peaks_df = pd.DataFrame(peaks_data)
+    # Ensure role column is string
+    if "role" in peaks_df.columns:
+        peaks_df["role"] = peaks_df["role"].astype(str).fillna("")
+    else:
+        peaks_df["role"] = ""
+    if "peak_area" in peaks_df.columns:
+        peaks_df["peak_area"] = pd.to_numeric(peaks_df["peak_area"], errors="coerce").fillna(0.0)
+    else:
+        peaks_df["peak_area"] = 0.0
+    if "sample_id" not in peaks_df.columns:
+        return []
+
+    prod_target = next((t for t in (targets or []) if isinstance(t, dict) and _clean_text(t.get("role_label", "")).startswith("Prod")), None)
+    mw_prod = float((prod_target or {}).get("mw") or 0)
+    yp = yield_params or {}
+
+    summary_rows = []
+    for sample_id, sp in peaks_df.groupby("sample_id", dropna=False):
+        sid = _clean_text(sample_id)
+        well = _well_from_sid(sid)
+        if not well:
+            continue
+        sm_rows = sp[sp["role"].str.startswith("SM", na=False)]
+        prod_rows = sp[sp["role"].str.startswith("Prod", na=False)]
+        is_rows = sp[sp["role"].str.startswith("IS", na=False)]
+
+        sm_area = float(sm_rows["peak_area"].max()) if not sm_rows.empty else 0.0
+        prod_area = float(prod_rows["peak_area"].max()) if not prod_rows.empty else 0.0
+        is_area = float(is_rows["peak_area"].max()) if not is_rows.empty else 0.0
+        has_prod = bool(prod_area > 0.0)
+
+        conv = float("nan")
+        if sm_area or prod_area:
+            try:
+                if _lcms_conversion_pct is not None:
+                    conv = float(_lcms_conversion_pct(sm_area, prod_area))
+                else:
+                    total = sm_area + prod_area
+                    conv = (prod_area / total * 100.0) if total > 0 else float("nan")
+            except Exception:
+                pass
+
+        yld_pct = float("nan")
+        if atype_norm == "yield_with_is" and _lcms_yield_with_is is not None and prod_area > 0:
+            try:
+                calc = _lcms_yield_with_is(
+                    area_prod=prod_area,
+                    area_is=is_area,
+                    conc_is_mM=float(_safe_float(yp.get("conc_is_mM")) or 0.0),
+                    rf=float(_safe_float(yp.get("response_factor")) or 1.0),
+                    volume_mL=float(_safe_float(yp.get("total_volume_mL")) or 0.0),
+                    mw_product=float(mw_prod or 0.0),
+                    scale_mmol=float(_safe_float(yp.get("reaction_scale_mmol")) or 0.0),
+                )
+                yld_pct = float(calc.get("yield_pct")) if calc.get("yield_pct") is not None else float("nan")
+            except Exception:
+                pass
+
+        result_value = "Yes" if has_prod else "No"
+        if atype_norm == "conversion" and conv == conv:
+            result_value = f"{round(conv, 2)}%"
+        if atype_norm == "yield_with_is" and yld_pct == yld_pct:
+            result_value = f"{round(yld_pct, 2)}%"
+
+        summary_rows.append({
+            "sample_id": sid,
+            "well": well,
+            "result": result_value,
+            "result_type": (
+                "Product presence" if atype_norm == "product_formation"
+                else "LC/MS conversion" if atype_norm == "conversion"
+                else "LC/MS yield" if atype_norm == "yield_with_is"
+                else "LC/MS pie chart"
+            ),
+            "product_found": bool(has_prod),
+            "conversion_pct": None if conv != conv else round(conv, 4),
+            "yield_pct": None if yld_pct != yld_pct else round(yld_pct, 4),
+            "sm_area": round(sm_area, 4),
+            "prod_area": round(prod_area, 4),
+            "is_area": round(is_area, 4),
+        })
+    return summary_rows
+
+
+@screenings_api_bp.post("/<string:eln_id>/analysis/update-roles")
+def update_peak_roles(eln_id: str):
+    """Recalculate summary_rows from edited peak roles without finalising."""
+    session = SessionLocal()
+    try:
+        screening = session.query(Screening).filter(Screening.eln_id == eln_id).first()
+        if not screening:
+            return jsonify({"ok": False, "error": "Screening not found"}), 404
+
+        payload = request.get_json(silent=True) or {}
+        updated_peaks = payload.get("peaks") if isinstance(payload.get("peaks"), list) else []
+
+        state = _lcms_state(screening)
+        results = state.get("results") if isinstance(state.get("results"), dict) else {}
+        if not results:
+            return jsonify({"ok": False, "error": "No analysis results found."}), 400
+
+        analysis_type = _clean_text(state.get("analysis_type")) or "product_formation"
+        targets = state.get("targets") if isinstance(state.get("targets"), list) else []
+        yield_params = state.get("yield_params") if isinstance(state.get("yield_params"), dict) else {}
+
+        design = None
+        if screening.plate_design_id:
+            design = session.query(ScreeningPlateDesign).filter(ScreeningPlateDesign.id == screening.plate_design_id).first()
+        dimensions = design.dimensions if design else {"rows": 4, "columns": 6}
+
+        summary_rows = _recalculate_summary_from_peaks(updated_peaks, analysis_type, targets, yield_params, dimensions)
+
+        results["summary_rows"] = summary_rows
+        results["peaks"] = updated_peaks
+        state["results"] = results
+        _set_lcms_state(screening, state)
+        session.commit()
+
+        return jsonify({"ok": True, "summary_rows": summary_rows, "peaks": updated_peaks})
+    except Exception as exc:
+        session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 500
     finally:
         session.close()
 

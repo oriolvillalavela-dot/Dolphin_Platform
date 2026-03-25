@@ -451,9 +451,27 @@ def run_lcms_screening_analysis(
         pie_map=pie_map,
     )
 
+    # Add mass summary columns (top_mz, top_intensity, top5_mz) if masses column present
+    if not final_df.empty and "masses" in final_df.columns:
+        def _sum_masses(masses):
+            if not isinstance(masses, list) or not masses:
+                return (None, None, "")
+            vals = [(d.get("mass"), d.get("intensity", 0.0)) for d in masses if d.get("mass") is not None]
+            if not vals:
+                return (None, None, "")
+            vals.sort(key=lambda t: (t[1] if t[1] is not None else -1), reverse=True)
+            top_mz, top_i = vals[0]
+            top5 = ", ".join(f"{m:.2f}" for m, _ in vals[:5])
+            return (top_mz, top_i, top5)
+        summary_cols = final_df["masses"].apply(
+            lambda m: pd.Series(_sum_masses(m), index=["top_mz", "top_intensity", "top5_mz"])
+        )
+        final_df = pd.concat([final_df.reset_index(drop=True), summary_cols.reset_index(drop=True)], axis=1)
+
     peaks_cols = [
-        "measurement_id", "sample_id", "peak_id", "rt_min", "peak_area", "role",
-        "role_source", "found_adduct", "confidence_score",
+        "measurement_id", "sample_id", "peak_id", "rt_min", "peak_area",
+        "top_mz", "top_intensity", "top5_mz",
+        "role", "role_source", "found_adduct", "match_rank", "rel_intensity", "confidence_score",
     ]
     peaks_out = []
     if not final_df.empty:

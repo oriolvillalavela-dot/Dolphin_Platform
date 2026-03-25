@@ -132,13 +132,25 @@
     </div>
 
     <div class="screenings-subpanel mt-3">
-      <div class="text-sm text-slate-200 mb-2">Manual Override Table</div>
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-sm text-slate-200">UV Peaks with Linked ESI Masses and Roles</div>
+        <span class="text-xs text-slate-400">Edit the <b>Role</b> column, then click <em>Update Results</em> to recalculate.</span>
+      </div>
+      <div id="validatePeaksWrap" class="screenings-table-wrap" style="max-height:320px;overflow-y:auto;"></div>
+    </div>
+
+    <div class="flex gap-3 mt-3">
+      <button id="updateRolesBtn" class="screenings-btn-secondary">Update Results</button>
+    </div>
+
+    <div class="screenings-subpanel mt-3">
+      <div class="text-sm text-slate-200 mb-2">Summary / Manual Override Table</div>
       <div id="validateTableWrap" class="screenings-table-wrap"></div>
     </div>
 
     <p id="validateMsg" class="text-sm text-slate-400 mt-3"></p>
     <div class="flex gap-3 mt-3">
-      <button id="finishValidationBtn" class="screenings-btn">Finish Validation</button>
+      <button id="finishValidationBtn" class="screenings-btn">Validate</button>
     </div>
   </div>
 </div>

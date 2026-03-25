@@ -1052,6 +1052,8 @@
     const validateModal = el("validateModal");
     const validateModalClose = el("validateModalClose");
     const validateImages = el("validateImages");
+    const validatePeaksWrap = el("validatePeaksWrap");
+    const updateRolesBtn = el("updateRolesBtn");
     const validateTableWrap = el("validateTableWrap");
     const validateMsg = el("validateMsg");
     const finishValidationBtn = el("finishValidationBtn");
@@ -1343,6 +1345,103 @@
       analyseModal.classList.add("hidden");
     }
 
+    function renderPeaksTable(peaks, targets) {
+      if (!validatePeaksWrap) return;
+      const list = Array.isArray(peaks) ? peaks : [];
+      if (!list.length) {
+        validatePeaksWrap.innerHTML = `<div class="text-slate-400 text-sm">No peak data available. Re-run the analysis to populate this table.</div>`;
+        return;
+      }
+
+      // Collect available role options from targets + existing peak roles
+      const roleSet = new Set([""]);
+      (targets || []).forEach((t) => {
+        const rl = cleanText(t.role_label);
+        if (rl) roleSet.add(rl);
+      });
+      list.forEach((p) => {
+        const r = cleanText(p.role);
+        if (r) roleSet.add(r);
+      });
+      const roleOptions = [...roleSet].sort((a, b) => {
+        if (!a) return -1;
+        if (!b) return 1;
+        return a.localeCompare(b);
+      });
+
+      const headers = ["Sample", "Peak", "RT (min)", "Area", "Top m/z", "Top 5 m/z", "Adduct", "Role", "Source", "Conf."];
+      const rows = list.map((p, i) => {
+        const curRole = cleanText(p.role);
+        const selectOpts = roleOptions.map((r) =>
+          `<option value="${r}" ${r === curRole ? "selected" : ""}>${r || "(none)"}</option>`
+        ).join("");
+        return `<tr data-peak-idx="${i}">
+          <td class="text-xs">${cleanText(p.sample_id)}</td>
+          <td>${cleanText(p.peak_id)}</td>
+          <td>${cleanText(p.rt_min)}</td>
+          <td>${cleanText(p.peak_area)}</td>
+          <td>${cleanText(p.top_mz)}</td>
+          <td class="text-xs">${cleanText(p.top5_mz)}</td>
+          <td class="text-xs">${cleanText(p.found_adduct)}</td>
+          <td><select class="validate-role-select" style="font-size:0.75rem;padding:2px 6px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;border-radius:4px;">${selectOpts}</select></td>
+          <td class="text-xs">${cleanText(p.role_source)}</td>
+          <td>${cleanText(p.confidence_score)}</td>
+        </tr>`;
+      }).join("");
+
+      validatePeaksWrap.innerHTML = `
+        <table class="screenings-table" style="font-size:0.78rem;">
+          <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    }
+
+    function collectUpdatedPeaks() {
+      const peaks = (
+        state.analysisResults &&
+        state.analysisResults.results &&
+        Array.isArray(state.analysisResults.results.peaks)
+          ? state.analysisResults.results.peaks
+          : []
+      );
+      const updated = peaks.map((p) => Object.assign({}, p));
+      if (!validatePeaksWrap) return updated;
+      validatePeaksWrap.querySelectorAll("tbody tr").forEach((row) => {
+        const idx = Number(row.dataset.peakIdx);
+        if (idx >= 0 && idx < updated.length) {
+          const sel = row.querySelector(".validate-role-select");
+          if (sel) updated[idx] = Object.assign({}, updated[idx], { role: cleanText(sel.value) });
+        }
+      });
+      return updated;
+    }
+
+    async function updateRoles() {
+      showValidateMessage("Recalculating results…", false);
+      updateRolesBtn.disabled = true;
+      updateRolesBtn.textContent = "Updating…";
+      try {
+        const updatedPeaks = collectUpdatedPeaks();
+        const data = await fetchJson(`/api/screenings/${encodeURIComponent(elnId)}/analysis/update-roles`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ peaks: updatedPeaks }),
+        });
+        if (state.analysisResults && state.analysisResults.results) {
+          state.analysisResults.results.summary_rows = data.summary_rows;
+          state.analysisResults.results.peaks = data.peaks;
+        }
+        renderPeaksTable(data.peaks, state.analysisResults && state.analysisResults.targets);
+        renderValidateTable(data.summary_rows || []);
+        showValidateMessage("Results updated. Review the summary table, then click Validate.", false);
+      } catch (err) {
+        showValidateMessage(err.message, true);
+      } finally {
+        updateRolesBtn.disabled = false;
+        updateRolesBtn.textContent = "Update Results";
+      }
+    }
+
     function renderValidateTable(rows) {
       const list = Array.isArray(rows) ? rows : [];
       if (!list.length) {
@@ -1394,7 +1493,11 @@
       showValidateMessage("", false);
       const data = await fetchJson(`/api/screenings/${encodeURIComponent(elnId)}/analysis/results`);
       state.analysisResults = data;
-      const rows = (data.results || {}).summary_rows || [];
+      const results = data.results || {};
+      const rows = results.summary_rows || [];
+      const peaks = results.peaks || [];
+      const targets = data.targets || [];
+      renderPeaksTable(peaks, targets);
       renderValidateTable(rows);
       const imgs = data.images || [];
       validateImages.innerHTML = imgs.map((img) => `<div><img alt="${img.name || "analysis"}" src="${img.url}"><div class="text-xs text-slate-400 mt-1">${img.name || ""}</div></div>`).join("");
@@ -1462,6 +1565,9 @@
     });
 
     validateModalClose.addEventListener("click", closeValidateModal);
+    updateRolesBtn.addEventListener("click", () => {
+      updateRoles().catch((err) => showValidateMessage(err.message, true));
+    });
     finishValidationBtn.addEventListener("click", async () => {
       try {
         finishValidationBtn.disabled = true;
