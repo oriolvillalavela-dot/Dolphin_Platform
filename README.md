@@ -10,22 +10,20 @@
 [![RDKit](https://img.shields.io/badge/RDKit-2023.09-orange.svg)](https://www.rdkit.org/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-*A full-stack platform bridging cheminformatics, large language models, and laboratory automation for accelerated chemical discovery.*
+*A platform bridging cheminformatics, large language models, and laboratory automation for accelerated chemical discovery.*
 
 </div>
 
 ---
 
-## Abstract
+## Summary
 
 Modern pharmaceutical research demands tight integration between **chemical inventory management**, **high-throughput experimentation (HTE)**, and **analytical data pipelines**. Dolphin Platform V2 addresses this by providing a unified web-based system that combines:
 
-1. **Structured chemical data management** — SMILES/InChI parsing, functional group detection via SMARTS substructure matching, and CAS Registry lookups powered by [RDKit](https://www.rdkit.org/).
-2. **LLM-augmented molecular intelligence** — Optical Chemical Structure Recognition (OCSR) via [MolScribe](https://github.com/thomas-young-2013/MolScribe), with AI fallback through the [Portkey](https://portkey.ai/) gateway for SMILES prediction and retrosynthetic reasoning.
+1. **Structured chemical data management** — SMILES/InChI parsing, functional group detection, and CAS Registry lookups.
+2. **LLM-augmented molecular intelligence** — Optical Chemical Structure Recognition (OCSR) via [MolScribe](https://github.com/thomas-young-2013/MolScribe), with AI fallback for SMILES extraction of external reports.
 3. **Autonomous experiment design** — AI-driven plate layout generation for high-throughput screenings, integrating ELN parsing with intelligent reagent assignment.
 4. **End-to-end LC-MS analytics** — Automated IPC measurements, purification tracking, and quality control pipelines with direct instrument file access via SMB protocol.
-
-This architecture reflects the paradigm shift toward **autonomous chemical agents** (cf. [ChemCrow](https://arxiv.org/abs/2304.05376), Boiko *et al.* 2023) and **NLP-driven synthesis planning** (Schwaller *et al.*, 2019), embedding LLM reasoning directly into laboratory workflows rather than treating AI as a disconnected tool.
 
 ---
 
@@ -121,9 +119,6 @@ dolphin_platform/
 ├── utils/                          # Shared cheminformatics utilities
 │   ├── chem_utils.py               #   RDKit: SMARTS matching, SVG, PDF export
 │   └── chem_converter/             #   CAS/IUPAC/SMILES/InChI converters
-│
-├── src/dolphin/agents/             # Showcase: typed, modular agent code
-│   └── synthesis_agent.py          #   LLM retrosynthesis reasoning agent
 │
 ├── tests/                          # pytest test suite
 │   ├── conftest.py                 #   Shared fixtures
@@ -238,44 +233,6 @@ print(f"Rotatable Bonds:   {Descriptors.NumRotatableBonds(mol)}")
 # Rotatable Bonds:   3
 ```
 
-### 3. AI-Driven Synthesis Agent (Showcase)
-
-```python
-from src.dolphin.agents.synthesis_agent import SynthesisAgent, MoleculeDescriptor
-
-# Initialize the agent with your LLM API key
-agent = SynthesisAgent(api_key="your-portkey-key")
-
-# Describe a target molecule
-target = MoleculeDescriptor.from_smiles("CC(=O)Oc1ccccc1C(=O)O")
-print(f"Target: {target.name} | MW: {target.molecular_weight:.1f}")
-print(f"Functional groups: {target.functional_groups}")
-
-# Request retrosynthetic analysis
-result = agent.propose_retrosynthesis(
-    target_smiles=target.smiles,
-    strategy="single_step",
-    max_proposals=3,
-)
-for i, route in enumerate(result.routes, 1):
-    print(f"Route {i}: {route.precursors} → {route.target}")
-```
-
----
-
-## State of the Art
-
-Dolphin Platform V2 builds upon and complements several key advances at the intersection of AI and chemistry:
-
-| Domain | Foundational Work | How Dolphin Extends It |
-|--------|-------------------|----------------------|
-| **Molecular Transformers** | Schwaller *et al.* (2019) — *Molecular Transformer* for reaction prediction | Integrates transformer-based reasoning via LLM gateway for retrosynthetic proposals within laboratory workflows |
-| **Chemical Language Models** | Weininger (1988) — SMILES; Schwaller *et al.* (2021) — *Mapping chemical reactions with attention* | Uses SMILES as the canonical molecular representation across all modules; SMARTS-based functional group detection |
-| **Autonomous Agents** | Boiko *et al.* (2023) — *ChemCrow*; Bran *et al.* (2024) | PPM module implements agent-like PDF → OCR → SMILES pipeline with AI fallback; Screening module uses LLM for autonomous plate layout |
-| **OCSR** | Xu *et al.* (2022) — *MolScribe* | Direct integration of MolScribe for extracting molecular structures from research PDF documents |
-| **HTE Digitization** | Perera *et al.* (2018) — *Platform for nanomole-scale synthesis* | Digital twin of HTE plates: 24/96-well design, reagent assignment, and LC-MS result integration |
-
-> **Key Differentiator**: While most AI-chemistry tools operate as standalone models, Dolphin Platform embeds AI capabilities *within the laboratory management workflow itself* — from PDF intake to plate design to analytical result tracking — creating a closed-loop system for accelerated discovery.
 
 ---
 
@@ -286,7 +243,7 @@ Dolphin Platform V2 builds upon and complements several key advances at the inte
 pytest
 
 # With coverage report
-pytest --cov=utils --cov=src --cov-report=html
+pytest --cov=utils --cov-report=html
 
 # Run only fast unit tests
 pytest -m "not slow"
@@ -301,38 +258,10 @@ We welcome contributions. Please follow these guidelines:
 1. **Fork** the repository and create a feature branch
 2. **Install** dev dependencies: `pip install -e ".[dev,test]"`
 3. **Lint** your code: `ruff check . --fix`
-4. **Type-check**: `mypy src/`
+4. **Type-check**: `mypy utils/`
 5. **Test**: `pytest`
 6. **Submit** a pull request with a clear description
 
 ---
-
-## Citation
-
-If you use Dolphin Platform in your research, please cite:
-
-```bibtex
-@software{villalba2026dolphin,
-  author  = {Villalba Vela, Oriol},
-  title   = {Dolphin Platform V2: AI-Augmented Chemical Research Management},
-  year    = {2026},
-  url     = {https://github.com/oriolvillalavela/dolphin-platform},
-  note    = {Flask + RDKit + LLM integration for HTE, LC-MS, and molecular intelligence},
-}
-```
-
----
-
-## License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-
-*Built with ❤️ for the chemical sciences community*
-
-**[Roche](https://www.roche.com/) · [EPFL](https://www.epfl.ch/) · [RDKit](https://www.rdkit.org/)**
 
 </div>

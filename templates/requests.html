@@ -83,6 +83,24 @@
 </div>
 <div id="status" class="status-msg"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div id="analytics-section" style="background: #0d1b2a; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+    <h2 style="color: white; margin-top: 0;">Analytics Dashboard</h2>
+    <div style="display: flex; gap: 20px; height: 400px;">
+        <div style="flex: 2; background: #1b263b; padding: 15px; border-radius: 8px;">
+            <canvas id="monthlyProjectChart"></canvas>
+        </div>
+        <div style="flex: 1; background: #1b263b; padding: 15px; border-radius: 8px;">
+            <canvas id="projectDistributionChart"></canvas>
+        </div>
+        <div style="flex: 1; background: #1b263b; padding: 15px; border-radius: 8px;">
+            <canvas id="requestDistributionChart"></canvas>
+        </div>
+    </div>
+</div>
+
+
 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
     <h1>Library Requests</h1>
     <div style="display: flex; gap: 10px; justify-content: flex-end;">
@@ -342,6 +360,159 @@ function processRegUpload(file) {
         statusDiv.innerText = "Reg. Upload Failed: " + err.message;
     });
 }
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Extract data from the Jinja2 context
+    const rawData = [
+        {% for e in experiments %}
+        {
+            month: "{{ e.start_date[:7] if e.start_date else 'Unknown' }}", // Format: YYYY-MM
+            project: "{{ e.project_name or 'Other' }}",
+            count: {{ e.no_reg_compounds or 0 }}
+        },
+        {% endfor %}
+    ];
+
+    // 2. Process data for the Stacked Bar Chart
+    const months = [...new Set(rawData.map(d => d.month))].sort();
+    const projects = [...new Set(rawData.map(d => d.project))];
+    
+    const datasets = projects.map((proj, index) => {
+        const colors = ['#4361ee', '#4cc9f0', '#f72585', '#7209b7', '#ffb703']; // Custom palette
+        return {
+            label: proj,
+            data: months.map(m => {
+                return rawData
+                    .filter(d => d.month === m && d.project === proj)
+                    .reduce((sum, curr) => sum + curr.count, 0);
+            }),
+            backgroundColor: colors[index % colors.length]
+        };
+    });
+
+    // 3. Render the Stacked Bar Chart
+    const ctx = document.getElementById('monthlyProjectChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: { labels: months, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: 'Monthly Registered Compounds (by Project)', color: '#fff' },
+                legend: { labels: { color: '#fff' } }
+            },
+            scales: {
+                x: { stacked: true, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                y: { stacked: true, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+            }
+        }
+    });
+    // --- 4. Process Data for Project Distribution (Doughnut) ---
+const projectCounts = {};
+rawData.forEach(d => {
+    projectCounts[d.project] = (projectCounts[d.project] || 0) + d.count;
+});
+
+new Chart(document.getElementById('projectDistributionChart'), {
+    type: 'doughnut',
+    data: {
+        labels: Object.keys(projectCounts),
+        datasets: [{
+            data: Object.values(projectCounts),
+            backgroundColor: ['#4361ee', '#4cc9f0', '#f72585', '#7209b7', '#ffb703'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            title: { display: true, text: 'Project Distribution (Total Compounds)', color: '#fff' },
+            legend: { position: 'right', labels: { color: '#fff', boxWidth: 12 } }
+        }
+    }
+});
+
+// --- 5. Process Data for Success Rate Trends (Line) ---
+// Note: This calculates the average success rate per month across all projects
+const monthlySuccess = {};
+const monthlyCounts = {};
+
+{% for e in experiments %}
+    {% if e.start_date and e.success_rate is not none %}
+        (function() {
+            const m = "{{ e.start_date[:7] }}";
+            const rate = {{ e.success_rate * 100 }};
+            monthlySuccess[m] = (monthlySuccess[m] || 0) + rate;
+            monthlyCounts[m] = (monthlyCounts[m] || 0) + 1;
+        })();
+    {% endif %}
+{% endfor %}
+
+const trendLabels = Object.keys(monthlySuccess).sort();
+const trendData = trendLabels.map(m => (monthlySuccess[m] / monthlyCounts[m]).toFixed(1));
+
+new Chart(document.getElementById('successRateChart'), {
+    type: 'line',
+    data: {
+        labels: trendLabels,
+        datasets: [{
+            label: 'Avg Success Rate %',
+            data: trendData,
+            borderColor: '#4cc9f0',
+            backgroundColor: 'rgba(76, 201, 240, 0.2)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            title: { display: true, text: 'Success Rate Trends', color: '#fff' },
+            legend: { display: false }
+        },
+        scales: {
+            y: { min: 0, max: 100, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+            x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+        }
+    }
+});
+// --- 6. Process Data for Request Distribution (Entry Count) ---
+const requestCounts = {};
+rawData.forEach(d => {
+    // This counts each row as 1 request, regardless of the compound number
+    requestCounts[d.project] = (requestCounts[d.project] || 0) + 1;
+});
+
+new Chart(document.getElementById('requestDistributionChart'), {
+    type: 'doughnut',
+    data: {
+        labels: Object.keys(requestCounts),
+        datasets: [{
+            data: Object.values(requestCounts),
+            backgroundColor: ['#4361ee', '#4cc9f0', '#f72585', '#7209b7', '#ffb703'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            title: { 
+                display: true, 
+                text: 'Request Distribution (Number of Requests)', 
+                color: '#fff' 
+            },
+            legend: { 
+                position: 'right', 
+                labels: { color: '#fff', boxWidth: 12 } 
+            }
+        }
+    }
+});
+});
 </script>
 <div id="upload-modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
     <div style="background:white; margin:10% auto; padding:20px; border-radius:8px; width:400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">

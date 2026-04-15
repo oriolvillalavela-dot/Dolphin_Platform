@@ -42,7 +42,7 @@ jobs:
 
       - name: Type check with mypy
         run: |
-          mypy src/ --ignore-missing-imports
+          mypy utils/ --ignore-missing-imports
         continue-on-error: true   # Gradual adoption
 
       - name: Run tests

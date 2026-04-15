@@ -85,7 +85,7 @@ Repository = "https://github.com/oriolvillalavela/dolphin-platform"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["blueprints*", "utils*", "src*"]
+include = ["blueprints*", "utils*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
