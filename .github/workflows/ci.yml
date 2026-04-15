@@ -1,0 +1,57 @@
+# ────────────────────────────────────────────────────────────────
+# Dolphin Platform V2 — GitHub Actions CI Pipeline
+# ────────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: Lint & Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,test]"
+
+      - name: Lint with Ruff
+        run: |
+          ruff check . --output-format=github
+
+      - name: Type check with mypy
+        run: |
+          mypy src/ --ignore-missing-imports
+        continue-on-error: true   # Gradual adoption
+
+      - name: Run tests
+        run: |
+          pytest --tb=short --junitxml=report.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: report.xml

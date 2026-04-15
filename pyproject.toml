@@ -1,0 +1,122 @@
+# ────────────────────────────────────────────────────────────────
+# Dolphin Platform V2 — Project Configuration (PEP 621)
+# ────────────────────────────────────────────────────────────────
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dolphin-platform"
+version = "2.0.0"
+description = "AI-augmented chemical research management: inventory tracking, HTE plate design, LC-MS analytics, and LLM-driven molecular intelligence."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Oriol Villalba Vela", email = "oriol.villalba@roche.com"},
+]
+keywords = [
+    "cheminformatics",
+    "rdkit",
+    "flask",
+    "machine-learning",
+    "lc-ms",
+    "high-throughput-experimentation",
+    "molecular-recognition",
+    "retrosynthesis",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "flask==3.0.3",
+    "SQLAlchemy==2.0.30",
+    "psycopg2-binary==2.9.9",
+    "gunicorn==22.0.0",
+    "httpx==0.27.0",
+    "pydantic==2.8.2",
+    "python-dotenv==1.0.1",
+    "cirpy==1.0.2",
+    "requests>=2.32.0",
+    "pydantic-settings>=2.3.4",
+    "numpy==1.26.4",
+    "rdkit-pypi==2022.9.5",
+    "pandas==2.2.2",
+    "openpyxl==3.1.5",
+    "xlrd>=2.0.1",
+    "smbprotocol==1.15.0",
+    "matplotlib==3.9.0",
+    "pymupdf>=1.24.0",
+    "Pillow>=10.0.0",
+    "portkey-ai>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.4.0",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+]
+test = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-mock>=3.14",
+]
+notebook = [
+    "jupyterlab>=4.2",
+    "ipywidgets>=8.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/oriolvillalavela/dolphin-platform"
+Documentation = "https://github.com/oriolvillalavela/dolphin-platform#readme"
+Repository = "https://github.com/oriolvillalavela/dolphin-platform"
+"Bug Tracker" = "https://github.com/oriolvillalavela/dolphin-platform/issues"
+
+# ── Tool Configuration ─────────────────────────────────────────
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["blueprints*", "utils*", "src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests requiring external services",
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false          # Gradual adoption
+ignore_missing_imports = true          # RDKit stubs not available
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+]
+ignore = ["E501"]  # line too long — handled by formatter
+
+[tool.ruff.lint.isort]
+known-first-party = ["dolphin_platform", "blueprints", "utils"]

@@ -1,0 +1,72 @@
+# ────────────────────────────────────────────────────────────────
+# Dolphin Platform V2 — .gitignore
+# ────────────────────────────────────────────────────────────────
+
+# ── Python ──────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# ── Virtual environments ───────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Environment & secrets ─────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── IDE / editors ──────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# ── Jupyter Notebooks ─────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── Testing & coverage ────────────────────────────────────────
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Data files (keep templates, ignore generated) ─────────────
+*.csv
+*.xlsx
+*.xls
+!data/.gitkeep
+
+# ── Model checkpoints & weights ───────────────────────────────
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.h5
+*.onnx
+checkpoints/
+
+# ── OS artifacts ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Docker ────────────────────────────────────────────────────
+*.log
+docker-compose.override.yml
+
+# ── Misc ──────────────────────────────────────────────────────
+*.bak
+*.tmp
