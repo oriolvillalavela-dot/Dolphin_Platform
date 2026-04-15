@@ -251,17 +251,4 @@ pytest -m "not slow"
 
 ---
 
-## Contributing
-
-We welcome contributions. Please follow these guidelines:
-
-1. **Fork** the repository and create a feature branch
-2. **Install** dev dependencies: `pip install -e ".[dev,test]"`
-3. **Lint** your code: `ruff check . --fix`
-4. **Type-check**: `mypy utils/`
-5. **Test**: `pytest`
-6. **Submit** a pull request with a clear description
-
----
-
 </div>
